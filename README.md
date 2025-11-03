@@ -215,7 +215,7 @@ theme[temp_end]="#ECEFF4"
 
 ## License
 
-MIT License - see LICENSE file
+GPL-2.0 license
 
 ## Contributing
 
