@@ -98,6 +98,26 @@ int ARGBDaemon::run() {
     return v;
   };
 
+  auto write_state = [&](const std::vector<RGB>& leds){
+    const char* h = std::getenv("HOME");
+    std::string cache_dir = std::string(h?h:"/") + "/.cache/omarchy-argb";
+    std::filesystem::create_directories(cache_dir);
+    std::string state_path = cache_dir + "/state.json";
+    std::ofstream out(state_path);
+    if (!out.good()) return;
+    out << "{\n";
+    out << "  \"theme\": \"" << (theme ? std::filesystem::path(theme->theme_dir).filename().string() : "none") << "\",\n";
+    out << "  \"colors\": [\n";
+    for (size_t i = 0; i < leds.size(); ++i) {
+      char buf[16]; std::snprintf(buf, sizeof(buf), "#%02X%02X%02X", leds[i].r, leds[i].g, leds[i].b);
+      out << "    \"" << buf << "\"";
+      if (i + 1 < leds.size()) out << ",";
+      out << "\n";
+    }
+    out << "  ]\n";
+    out << "}\n";
+  };
+
   auto compose = [&](){
     std::vector<RGB> leds(cfg_.led_count);
     if (palette) {
@@ -111,7 +131,7 @@ int ARGBDaemon::run() {
           double t = mid_idx == 0 ? 0.0 : (double)i / (double)mid_idx;
           c.r = (uint8_t)std::round(palette->accent.r + (palette->accent2.r - palette->accent.r) * t);
           c.g = (uint8_t)std::round(palette->accent.g + (palette->accent2.g - palette->accent.g) * t);
-          c.b = (uint8_t)std::round(palette->accent.b + (palette->accent2.b - palette->accent.b) * t);
+          c.b = (uint8_t)std::round(palette->accent.b + (palette->accent2.b - palette->accent2.b) * t);
         } else {
           // Second half: interpolate between accent2 and accent3
           double t = (double)(i - mid_idx) / (double)(cfg_.led_count - 1 - mid_idx);
@@ -138,6 +158,7 @@ int ARGBDaemon::run() {
   load_theme();
   auto leds = compose();
   tool.sendFrame(0, leds, cfg_.color_order);
+  write_state(leds);
   if (!leds.empty()) {
     auto c = leds[0];
     char bufc[16]; std::snprintf(bufc, sizeof(bufc), "#%02X%02X%02X", c.r, c.g, c.b);
@@ -190,6 +211,7 @@ int ARGBDaemon::run() {
         // no change
       } else {
         tool.sendFrame(0, leds, cfg_.color_order);
+        write_state(leds);
         if (!leds.empty()) {
           auto c = leds[0];
           char bufc[16]; std::snprintf(bufc, sizeof(bufc), "#%02X%02X%02X", c.r, c.g, c.b);
