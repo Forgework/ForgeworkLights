@@ -1,0 +1,7 @@
+build/
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dSYM/
