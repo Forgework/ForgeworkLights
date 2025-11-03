@@ -16,18 +16,45 @@ ForgeworkLights is a C++20 daemon designed specifically for **Framework Desktop*
 ### Software
 - **Omarchy Linux** (or compatible Arch-based distribution)
 - **framework-system** package (provides `framework_tool`)
-- **Omarchy theme system** with themes containing `btop.theme` files
+- **Omarchy theme system** (btop.theme)
 - **CMake** 3.16+ and **C++20 compiler** (g++ or clang++)
+
+## Quick Install (Recommended)
+
+The automated installer will check dependencies, build, and set everything up:
+
+```bash
+git clone https://github.com/Forgework/ForgeworkLights.git
+cd ForgeworkLights
+./install.sh
+```
+
+The installer will:
+- ✓ Check for Framework Desktop hardware
+- ✓ Verify dependencies (framework_tool, cmake, etc.)
+- ✓ Build the daemon
+- ✓ Install binaries to `/usr/local/bin`
+- ✓ Set up configuration
+- ✓ Configure passwordless sudo for framework_tool
+- ✓ Install systemd service (optional)
+- ✓ Set up waybar integration (optional)
+
+### Uninstall
+
+```bash
+./uninstall.sh
+```
+
+## Manual Installation
 
 ### Installing framework-system
 
 The daemon requires `framework_tool` from the `framework-system` package to control the ARGB LEDs.
 
-**Install via AUR:**
+**Install via pacman:**
 ```bash
-paru -S framework-system
-# or
-yay -S framework-system
+# ArchLinux
+sudo pacman -S framework-system
 ```
 
 **Manual installation:**
@@ -46,7 +73,7 @@ which framework_tool
 sudo framework_tool --rgbkbd 0 0xFF0000 0x00FF00 0x0000FF
 ```
 
-## Build & Install
+### Build & Install Manually
 
 ```bash
 # Clone repository
@@ -57,8 +84,9 @@ cd ForgeworkLights
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 
-# Install (optional)
-sudo cmake --install build
+# Install
+sudo install -Dm755 build/omarchy-argb /usr/local/bin/omarchy-argb
+sudo install -Dm755 scripts/show-gradient.sh /usr/local/bin/omarchy-argb-show
 ```
 
 ## Configuration
@@ -98,7 +126,7 @@ omarchy-argb daemon
 omarchy-argb brightness 0.5
 
 # Check color order
-omarchy-argb probe
+omarchy-argb prob
 ```
 
 ### Systemd Service
@@ -160,7 +188,7 @@ theme[temp_end]="#ECEFF4"
 - **Omarchy Linux optimized**: Expects Omarchy theme directory structure
 - **btop.theme required**: Most themes include this; custom themes may need it added
 - **Sudo required**: LED control needs root access to hardware interface
-- **14 LEDs max**: Designed for JARGB1 header spec (can be adjusted in config)
+- **14 LEDs max**: Designed for JARGB1 header spec (with a .4A buffer) (can be adjusted in config)
 - **GRB color order**: WS2812B standard; other strips may need config change
 
 ## Troubleshooting
@@ -172,8 +200,8 @@ theme[temp_end]="#ECEFF4"
 - Ensure strip uses 5V power (not 12V)
 
 **Wrong colors / grayscale:**
-- Check `color_order` in config (try "RGB" if "GRB" fails)
-- Increase `max_brightness` if colors look dim
+- Check `color_order` in config (try "RGB" if "GRB" fails) (AI keeps insisting on this, but it's GRB that the LED wants.... unless rgbkbd handles this??)
+- Increase `max_brightness` if colors look washed out
 - Verify theme has `btop.theme` file
 
 **Theme changes not detected:**
