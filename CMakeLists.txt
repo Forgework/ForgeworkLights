@@ -11,6 +11,7 @@ add_executable(omarchy-argb
   src/framework_tool.cpp
   src/config.cpp
   src/argb_daemon.cpp
+  src/theme_database.cpp
   src/theme.cpp
   src/palette_loader.cpp
   src/color_utils.cpp

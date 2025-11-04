@@ -3,6 +3,7 @@
 #include "theme.hpp"
 #include "palette_loader.hpp"
 #include "color_utils.hpp"
+#include "theme_database.hpp"
 #include <sys/inotify.h>
 #include <unistd.h>
 #include <vector>
@@ -118,11 +119,55 @@ int ARGBDaemon::run() {
     out << "}\n";
   };
 
+  // Load theme database
+  ThemeDatabase theme_db;
+  const char* home = std::getenv("HOME");
+  std::string db_path = std::string(home ? home : "/") + "/.config/omarchy-argb/themes.json";
+  if (!theme_db.load(db_path)) {
+    // Try system-wide location
+    db_path = "/usr/local/share/omarchy-argb/themes.json";
+    theme_db.load(db_path);
+  }
+
   auto compose = [&](){
     std::vector<RGB> leds(cfg_.led_count);
-    if (palette) {
-      // Create 3-color gradient: accent (temp_start) → accent2 (temp_mid) → accent3 (temp_end)
-      // Split LEDs into two halves: first half (accent→accent2), second half (accent2→accent3)
+    
+    // Try to get colors from database first
+    std::optional<ThemeColors> db_colors;
+    if (theme) {
+      std::string theme_name = std::filesystem::path(theme->theme_dir).filename().string();
+      db_colors = theme_db.get(theme_name);
+    }
+    
+    if (db_colors && db_colors->colors.size() >= 3) {
+      // Use curated database colors (5-color gradient for smooth transitions)
+      const auto& colors = db_colors->colors;
+      int num_colors = colors.size();
+      
+      for (int i = 0; i < cfg_.led_count; ++i) {
+        // Map LED position to color gradient
+        double pos = (double)i / (double)(cfg_.led_count - 1);  // 0.0 to 1.0
+        double color_pos = pos * (num_colors - 1);  // 0.0 to (num_colors-1)
+        
+        int idx = (int)color_pos;
+        double frac = color_pos - idx;
+        
+        if (idx >= num_colors - 1) {
+          // Last color
+          leds[i] = colors[num_colors - 1];
+        } else {
+          // Interpolate between idx and idx+1
+          const RGB& c1 = colors[idx];
+          const RGB& c2 = colors[idx + 1];
+          RGB c;
+          c.r = (uint8_t)std::round(c1.r + (c2.r - c1.r) * frac);
+          c.g = (uint8_t)std::round(c1.g + (c2.g - c1.g) * frac);
+          c.b = (uint8_t)std::round(c1.b + (c2.b - c1.b) * frac);
+          leds[i] = c;
+        }
+      }
+    } else if (palette) {
+      // Fallback: Use BTOP 3-color gradient
       int mid_idx = cfg_.led_count / 2;
       for (int i = 0; i < cfg_.led_count; ++i) {
         RGB c;
@@ -131,7 +176,7 @@ int ARGBDaemon::run() {
           double t = mid_idx == 0 ? 0.0 : (double)i / (double)mid_idx;
           c.r = (uint8_t)std::round(palette->accent.r + (palette->accent2.r - palette->accent.r) * t);
           c.g = (uint8_t)std::round(palette->accent.g + (palette->accent2.g - palette->accent.g) * t);
-          c.b = (uint8_t)std::round(palette->accent.b + (palette->accent2.b - palette->accent2.b) * t);
+          c.b = (uint8_t)std::round(palette->accent.b + (palette->accent2.b - palette->accent.b) * t);
         } else {
           // Second half: interpolate between accent2 and accent3
           double t = (double)(i - mid_idx) / (double)(cfg_.led_count - 1 - mid_idx);
@@ -142,7 +187,7 @@ int ARGBDaemon::run() {
         leds[i] = c;
       }
     } else {
-      // No palette: use fallback rainbow pattern
+      // No palette or database: use fallback rainbow pattern
       for (int i=0;i<cfg_.led_count;++i) {
         RGB c{}; c.r = (uint8_t)((i*7)%256); c.g = (uint8_t)((i*19)%256); c.b=(uint8_t)((i*37)%256);
         leds[i]=c;

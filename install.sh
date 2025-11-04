@@ -112,12 +112,18 @@ install_binaries() {
     
     # Install sample config
     mkdir -p ~/.config/omarchy-argb
-    if [ ! -f ~/.config/omarchy-argb/config.toml ]; then
+    mkdir -p ~/.config/omarchy-argb
+
+    if [ -f ~/.config/omarchy-argb/config.toml ]; then
+        echo -e "${YELLOW}!${NC} Config already exists, skipping"
+    else
         cp config/config.toml.sample ~/.config/omarchy-argb/config.toml
         echo -e "${GREEN}✓${NC} Installed config to ~/.config/omarchy-argb/config.toml"
-    else
-        echo -e "${YELLOW}!${NC} Config already exists, skipping"
     fi
+
+    # Install theme database (always update)
+    cp themes.json ~/.config/omarchy-argb/themes.json
+    echo -e "${GREEN}✓${NC} Installed theme database to ~/.config/omarchy-argb/themes.json"
 }
 
 # Setup systemd service

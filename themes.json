@@ -1,0 +1,56 @@
+{
+  "themes": {
+    "matte-black": {
+      "name": "Matte Black",
+      "colors": ["#8a8a8d", "#c49a47", "#f59e0b", "#d65d13", "#b91c1c"]
+    },
+    "tokyo-night": {
+      "name": "Tokyo Night",
+      "colors": ["#9ece6a", "#b8bb79", "#e0af68", "#ea8b7b", "#f7768e"]
+    },
+    "nord": {
+      "name": "Nord",
+      "colors": ["#81A1C1", "#84AEC8", "#88C0D0", "#B2D7DE", "#ECEFF4"]
+    },
+    "catppuccin": {
+      "name": "Catppuccin Mocha",
+      "colors": ["#a6d189", "#c1db8c", "#e5c890", "#e4a587", "#e78284"]
+    },
+    "gruvbox": {
+      "name": "Gruvbox Dark",
+      "colors": ["#458588", "#83829d", "#d3869b", "#e385a3", "#fb4394"]
+    },
+    "rose-pine": {
+      "name": "Rosé Pine",
+      "colors": ["#ebbcba", "#f1ca9e", "#f6c177", "#f29684", "#eb6f92"]
+    },
+    "kanagawa": {
+      "name": "Kanagawa",
+      "colors": ["#98BB6C", "#b8b867", "#DCA561", "#e28149", "#E82424"]
+    },
+    "everforest": {
+      "name": "Everforest",
+      "colors": ["#a7c080", "#c1ba7f", "#dbbc7f", "#e18c6a", "#f85552"]
+    },
+    "aether": {
+      "name": "Aether",
+      "colors": ["#BCD8E2", "#B0CAD0", "#9eaeb7", "#9BA6A8", "#98a098"]
+    },
+    "ristretto": {
+      "name": "Ristretto Espresso",
+      "colors": ["#a8a9eb", "#cba0cd", "#f38d70", "#fb7b7b", "#fd6a85"]
+    },
+    "osaka-jade": {
+      "name": "Osaka Jade",
+      "colors": ["#BFD99A", "#D4C97C", "#E1B55E", "#DFB85D", "#DBB05C"]
+    },
+    "catppuccin-latte": {
+      "name": "Catppuccin Latte",
+      "colors": ["#40a02b", "#8c7323", "#df8e1d", "#dd5c2b", "#d20f39"]
+    },
+    "flexoki-light": {
+      "name": "Flexoki Light",
+      "colors": ["#66800B", "#8A6810", "#BC5215", "#C23D1F", "#AF3029"]
+    }
+  }
+}
