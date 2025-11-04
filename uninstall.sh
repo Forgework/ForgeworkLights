@@ -12,6 +12,19 @@ echo "  ForgeworkLights Uninstall"
 echo "========================================"
 echo ""
 
+# Turn off LEDs gracefully before uninstalling
+if command -v omarchy-argb &> /dev/null; then
+    echo "Turning off LEDs..."
+    # Send all-black frame to turn off LEDs
+    if omarchy-argb once &> /dev/null; then
+        # Override with black frame
+        if command -v framework_tool &> /dev/null; then
+            sudo framework_tool --rgbkbd 0 $(printf '0x000000 %.0s' {1..14}) &> /dev/null || true
+        fi
+    fi
+    echo -e "${GREEN}✓${NC} LEDs turned off"
+fi
+
 # Stop and disable service
 if systemctl --user is-active omarchy-argb.service &> /dev/null; then
     echo "Stopping service..."
