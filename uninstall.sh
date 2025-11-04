@@ -61,7 +61,58 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}✓${NC} Cache removed"
 fi
 
+# Ask about waybar integration
+echo ""
+read -p "Remove waybar integration? [y/N] " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    # Find waybar config
+    waybar_config=""
+    if [ -f ~/.config/waybar/config.jsonc ]; then
+        waybar_config=~/.config/waybar/config.jsonc
+    elif [ -f ~/.config/waybar/config.json ]; then
+        waybar_config=~/.config/waybar/config.json
+    elif [ -f ~/.config/waybar/config ]; then
+        waybar_config=~/.config/waybar/config
+    fi
+    
+    if [ -n "$waybar_config" ]; then
+        # Backup before modifying
+        cp "$waybar_config" "${waybar_config}.uninstall-backup"
+        
+        # Remove module using sed (simpler and more robust than JSON parsing)
+        # Remove the module definition block
+        sed -i '/^[[:space:]]*"custom\/forgework-lights":/,/^[[:space:]]*}/d' "$waybar_config"
+        
+        # Remove from modules arrays (handle both with and without trailing comma)
+        sed -i 's/"custom\/forgework-lights",\?[[:space:]]*//g' "$waybar_config"
+        
+        # Clean up any double commas that might have been created
+        sed -i 's/,,/,/g' "$waybar_config"
+        
+        # Clean up trailing commas before closing brackets
+        sed -i 's/,[[:space:]]*\]/\]/g' "$waybar_config"
+        
+        echo -e "${GREEN}✓${NC} Removed from waybar config"
+        
+        # Remove CSS styling
+        if [ -f ~/.config/waybar/style.css ]; then
+            if grep -q "custom-forgework-lights" ~/.config/waybar/style.css; then
+                # Remove the ForgeworkLights section
+                sed -i '/\/\* ForgeworkLights module styling \*\//,/^}$/d' ~/.config/waybar/style.css
+                echo -e "${GREEN}✓${NC} Removed CSS styling"
+            fi
+        fi
+        
+        # Reload waybar
+        if pgrep waybar > /dev/null; then
+            killall -SIGUSR2 waybar 2>/dev/null || true
+            echo -e "${GREEN}✓${NC} Reloaded waybar"
+        fi
+    else
+        echo -e "${YELLOW}!${NC} Waybar config not found"
+    fi
+fi
+
 echo ""
 echo -e "${GREEN}Uninstall complete${NC}"
-echo ""
-echo "Note: Manually remove waybar module from ~/.config/waybar/config if added"

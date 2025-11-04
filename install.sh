@@ -16,7 +16,7 @@ echo ""
 
 # Check if running on Framework Desktop
 check_framework_desktop() {
-    if ! grep -q "Framework" /sys/devices/virtual/dmi/id/product_name 2>/dev/null; then
+    if ! grep -q "Framework" /sys/devices/virtual/dmi/id/sys_vendor 2>/dev/null; then
         echo -e "${YELLOW}Warning: This doesn't appear to be a Framework Desktop${NC}"
         echo "The daemon may not work correctly on other hardware."
         read -p "Continue anyway? [y/N] " -n 1 -r
@@ -25,7 +25,8 @@ check_framework_desktop() {
             exit 1
         fi
     else
-        echo -e "${GREEN}✓${NC} Framework Desktop detected"
+        local product=$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || echo "Unknown")
+        echo -e "${GREEN}✓${NC} Framework Desktop detected: $product"
     fi
 }
 
@@ -155,30 +156,118 @@ setup_sudo() {
 # Setup waybar integration
 setup_waybar() {
     echo ""
-    if [ ! -f ~/.config/waybar/config ]; then
+    # Check for various waybar config filenames
+    local waybar_config=""
+    if [ -f ~/.config/waybar/config.jsonc ]; then
+        waybar_config=~/.config/waybar/config.jsonc
+    elif [ -f ~/.config/waybar/config.json ]; then
+        waybar_config=~/.config/waybar/config.json
+    elif [ -f ~/.config/waybar/config ]; then
+        waybar_config=~/.config/waybar/config
+    else
         echo -e "${YELLOW}!${NC} Waybar config not found, skipping integration"
         return
     fi
     
-    read -p "Add waybar module configuration? [Y/n] " -n 1 -r
+    echo "Found waybar config: $waybar_config"
+    
+    # Check if already configured
+    if grep -q "custom/forgework-lights" "$waybar_config"; then
+        echo -e "${YELLOW}!${NC} Waybar module already configured"
+        return
+    fi
+    
+    read -p "Add ForgeworkLights module to waybar? [Y/n] " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-        echo ""
-        echo "Add this to your ~/.config/waybar/config modules:"
-        echo ""
-        cat << 'EOF'
-"custom/forgework-lights": {
-  "format": "󰌵",
-  "tooltip-format": "ForgeworkLights: {}",
-  "exec": "jq -r '.theme // \"No theme\"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo 'Off'",
-  "interval": 2,
-  "on-click": "/usr/local/bin/omarchy-argb-show"
+        # Backup config
+        cp "$waybar_config" "${waybar_config}.backup"
+        echo "Created backup: ${waybar_config}.backup"
+        
+        # Use Python to properly parse and modify JSONC
+        python3 << PYEOF
+import json
+import re
+import sys
+
+config_file = "$waybar_config"
+
+try:
+    with open(config_file, 'r') as f:
+        content = f.read()
+    
+    # Strip // comments for JSON parsing
+    lines = content.split('\n')
+    clean_lines = [re.sub(r'//.*$', '', line) for line in lines]
+    clean_content = '\n'.join(clean_lines)
+    
+    # Remove trailing commas (JSONC allows them, JSON doesn't)
+    clean_content = re.sub(r',(\s*[}\]])', r'\1', clean_content)
+    
+    config = json.loads(clean_content)
+    
+    # Add module definition
+    config["custom/forgework-lights"] = {
+        "format": "●",
+        "tooltip-format": "Lights: {}",
+        "exec": 'jq -r '"'"'.theme // "Off"'"'"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo "Off"',
+        "interval": 2,
+        "on-click": "/usr/local/bin/omarchy-argb-show"
+    }
+    
+    # Add to tray-expander group if it exists, otherwise modules-right
+    if "group/tray-expander" in config and "modules" in config["group/tray-expander"]:
+        modules = config["group/tray-expander"]["modules"]
+        if "custom/forgework-lights" not in modules:
+            # Add before "tray" if it exists
+            if "tray" in modules:
+                idx = modules.index("tray")
+                modules.insert(idx, "custom/forgework-lights")
+            else:
+                modules.append("custom/forgework-lights")
+        config["group/tray-expander"]["modules"] = modules
+        print("ADDED_TO_GROUP")
+    elif "modules-right" in config and isinstance(config["modules-right"], list):
+        if "custom/forgework-lights" not in config["modules-right"]:
+            config["modules-right"].insert(0, "custom/forgework-lights")
+        print("ADDED_TO_MODULES_RIGHT")
+    
+    # Write back
+    with open(config_file, 'w') as f:
+        json.dump(config, f, indent=2)
+    
+    print("SUCCESS")
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+PYEOF
+        
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓${NC} Waybar module added"
+            
+            # Add CSS styling
+            if [ -f ~/.config/waybar/style.css ]; then
+                if ! grep -q "custom-forgework-lights" ~/.config/waybar/style.css; then
+                    cat >> ~/.config/waybar/style.css << 'EOF'
+
+/* ForgeworkLights module styling */
+#custom-forgework-lights {
+  padding: 0 10px;
 }
 EOF
-        echo ""
-        echo "Then add \"custom/forgework-lights\" to your modules-right array."
-        echo ""
-        read -p "Press Enter to continue..." 
+                    echo -e "${GREEN}✓${NC} Added CSS styling"
+                fi
+            fi
+            
+            # Reload waybar
+            if pgrep waybar > /dev/null; then
+                echo "Reloading waybar..."
+                killall -SIGUSR2 waybar 2>/dev/null || true
+            fi
+        else
+            echo -e "${RED}✗${NC} Failed to configure waybar"
+            echo "You can manually add the module - see waybar/README.md"
+        fi
     fi
 }
 
