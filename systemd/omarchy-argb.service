@@ -4,7 +4,7 @@ After=dbus.service framework-system.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/omarchy-argb daemon
+ExecStart=/usr/local/bin/omarchy-argb daemon
 Restart=on-failure
 
 [Install]
