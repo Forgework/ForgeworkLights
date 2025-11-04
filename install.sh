@@ -77,10 +77,74 @@ check_dependencies() {
         echo -e "${GREEN}✓${NC} notify-send found"
     fi
     
+    if ! command -v python3 &> /dev/null; then
+        echo -e "${YELLOW}!${NC} python3 not found (optional, for TUI control panel)"
+        echo "  Install with: sudo pacman -S python"
+    else
+        echo -e "${GREEN}✓${NC} python3 found"
+        # Check for textual
+        if ! python3 -c "import textual" &> /dev/null; then
+            echo -e "${YELLOW}!${NC} textual not found (optional, for TUI control panel)"
+            echo "  Install with: pip install --user textual"
+        else
+            echo -e "${GREEN}✓${NC} textual found"
+        fi
+    fi
+    
+    if ! command -v bc &> /dev/null; then
+        echo -e "${YELLOW}!${NC} bc not found (optional, for brightness control)"
+        echo "  Install with: sudo pacman -S bc"
+    else
+        echo -e "${GREEN}✓${NC} bc found"
+    fi
+    
     if [ $missing -eq 1 ]; then
         echo ""
         echo -e "${RED}Missing required dependencies. Please install them first.${NC}"
         exit 1
+    fi
+}
+
+# Install optional dependencies
+install_optional_deps() {
+    echo ""
+    echo "Installing optional dependencies..."
+    
+    local to_install=()
+    
+    if ! command -v jq &> /dev/null; then
+        to_install+=("jq")
+    fi
+    
+    if ! command -v notify-send &> /dev/null; then
+        to_install+=("libnotify")
+    fi
+    
+    if ! command -v python3 &> /dev/null; then
+        to_install+=("python")
+    fi
+    
+    if ! command -v bc &> /dev/null; then
+        to_install+=("bc")
+    fi
+    
+    if [ ${#to_install[@]} -gt 0 ]; then
+        echo "Will install: ${to_install[*]}"
+        sudo pacman -S --needed --noconfirm "${to_install[@]}"
+        echo -e "${GREEN}✓${NC} Optional dependencies installed"
+    else
+        echo -e "${GREEN}✓${NC} All optional dependencies already installed"
+    fi
+    
+    # Install textual via pip if python is available
+    if command -v python3 &> /dev/null; then
+        if ! python3 -c "import textual" &> /dev/null; then
+            echo "Installing textual via pip..."
+            # Use --break-system-packages with --user (safe on Arch Linux)
+            python3 -m pip install --user --break-system-packages textual 2>/dev/null || \
+                python3 -m pip install --user textual
+            echo -e "${GREEN}✓${NC} Textual installed"
+        fi
     fi
 }
 
@@ -104,10 +168,31 @@ install_binaries() {
     sudo install -Dm755 build/omarchy-argb /usr/local/bin/omarchy-argb
     echo -e "${GREEN}✓${NC} Installed omarchy-argb to /usr/local/bin"
     
-    # Install waybar script
-    if [ -f scripts/show-gradient.sh ]; then
-        sudo install -Dm755 scripts/show-gradient.sh /usr/local/bin/omarchy-argb-show
-        echo -e "${GREEN}✓${NC} Installed waybar script to /usr/local/bin"
+    # Install TUI control panel
+    if [ -f scripts/options-tui.py ]; then
+        sudo install -Dm755 scripts/options-tui.py /usr/local/bin/omarchy-argb-menu
+        echo -e "${GREEN}✓${NC} Installed TUI control panel to /usr/local/bin"
+        
+        # Install TUI package module
+        if [ -d scripts/tui ]; then
+            # Use system site-packages (Arch Linux doesn't use /usr/local for Python)
+            TUI_INSTALL_DIR=$(python3 -c "import site; print(site.getsitepackages()[0])")/tui
+            sudo mkdir -p "$TUI_INSTALL_DIR"
+            sudo cp -r scripts/tui/* "$TUI_INSTALL_DIR/"
+            echo -e "${GREEN}✓${NC} Installed TUI package module to $TUI_INSTALL_DIR"
+        fi
+    fi
+    
+    # Install theme sync script
+    if [ -f scripts/sync-themes.py ]; then
+        sudo install -Dm755 scripts/sync-themes.py /usr/local/bin/omarchy-argb-sync-themes
+        echo -e "${GREEN}✓${NC} Installed theme sync script to /usr/local/bin"
+    fi
+    
+    # Install floating TUI launcher
+    if [ -f scripts/launch-tui-floating.sh ]; then
+        sudo install -Dm755 scripts/launch-tui-floating.sh /usr/local/bin/omarchy-argb-menu-floating
+        echo -e "${GREEN}✓${NC} Installed floating TUI launcher to /usr/local/bin"
     fi
     
     # Install sample config
@@ -190,13 +275,32 @@ setup_waybar() {
         cp "$waybar_config" "${waybar_config}.backup"
         echo "Created backup: ${waybar_config}.backup"
         
+        # Detect terminal emulator
+        TERMINAL=""
+        if command -v kitty &> /dev/null; then
+            TERMINAL="kitty -e"
+        elif command -v alacritty &> /dev/null; then
+            TERMINAL="alacritty -e"
+        elif command -v foot &> /dev/null; then
+            TERMINAL="foot"
+        elif command -v wezterm &> /dev/null; then
+            TERMINAL="wezterm start --"
+        elif command -v gnome-terminal &> /dev/null; then
+            TERMINAL="gnome-terminal --"
+        else
+            echo -e "${YELLOW}!${NC} No terminal emulator found, TUI may not work"
+            TERMINAL="xterm -e"
+        fi
+        
         # Use Python to properly parse and modify JSONC
         python3 << PYEOF
 import json
 import re
 import sys
+import os
 
 config_file = "$waybar_config"
+terminal_cmd = "$TERMINAL"
 
 try:
     with open(config_file, 'r') as f:
@@ -212,13 +316,12 @@ try:
     
     config = json.loads(clean_content)
     
-    # Add module definition
     config["custom/forgework-lights"] = {
         "format": "●",
         "tooltip-format": "Lights: {}",
         "exec": 'jq -r '"'"'.theme // "Off"'"'"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo "Off"',
         "interval": 2,
-        "on-click": "/usr/local/bin/omarchy-argb-show"
+        "on-click": "/usr/local/bin/omarchy-argb-menu-floating"
     }
     
     # Add to tray-expander group if it exists, otherwise modules-right
@@ -277,6 +380,54 @@ EOF
     fi
 }
 
+# Setup Hyprland window rules
+setup_hyprland() {
+    echo ""
+    
+    # Check if Hyprland is installed
+    if ! command -v hyprctl &> /dev/null; then
+        echo -e "${YELLOW}!${NC} Hyprland not detected, skipping window rules"
+        return
+    fi
+    
+    local hypr_config="$HOME/.config/hypr/hyprland.conf"
+    
+    if [ ! -f "$hypr_config" ]; then
+        echo -e "${YELLOW}!${NC} Hyprland config not found at $hypr_config"
+        return
+    fi
+    
+    # Check if rules already exist
+    if grep -q "forgework-lights-tui" "$hypr_config"; then
+        echo -e "${YELLOW}!${NC} Hyprland window rules already configured"
+        return
+    fi
+    
+    read -p "Add Hyprland window rules for floating TUI? [Y/n] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        # Backup config
+        cp "$hypr_config" "${hypr_config}.backup"
+        echo "Created backup: ${hypr_config}.backup"
+        
+        # Append window rules
+        cat >> "$hypr_config" << 'EOF'
+
+# ForgeworkLights TUI Window Rules
+windowrulev2 = float, class:^(forgework-lights-tui)$
+windowrulev2 = size 1200 800, class:^(forgework-lights-tui)$
+windowrulev2 = move 100%-1220 60, class:^(forgework-lights-tui)$
+windowrulev2 = animation slide, class:^(forgework-lights-tui)$
+EOF
+        
+        echo -e "${GREEN}✓${NC} Added Hyprland window rules"
+        echo -e "${GREEN}✓${NC} TUI will now open as floating window in upper right"
+        
+        # Reload Hyprland config
+        hyprctl reload &>/dev/null && echo -e "${GREEN}✓${NC} Reloaded Hyprland config" || true
+    fi
+}
+
 # Test the installation
 test_installation() {
     echo ""
@@ -301,11 +452,13 @@ test_installation() {
 main() {
     check_framework_desktop
     check_dependencies
+    install_optional_deps
     build_project
     install_binaries
     setup_sudo
     setup_systemd
     setup_waybar
+    setup_hyprland
     
     echo ""
     echo "========================================"

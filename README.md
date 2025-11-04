@@ -86,7 +86,7 @@ cmake --build build -j
 
 # Install
 sudo install -Dm755 build/omarchy-argb /usr/local/bin/omarchy-argb
-sudo install -Dm755 scripts/show-gradient.sh /usr/local/bin/omarchy-argb-show
+sudo install -Dm755 scripts/options-tui.py /usr/local/bin/omarchy-argb-menu
 ```
 
 ## Configuration

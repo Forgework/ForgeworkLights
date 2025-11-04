@@ -105,6 +105,18 @@ bool ThemeDatabase::load(const std::string& path) {
         }
       }
     }
+    // Look for color values in multi-line arrays
+    else if (line.find('"') != std::string::npos && line.find('#') != std::string::npos) {
+      // Extract hex color from quoted string
+      auto quote1 = line.find('"');
+      auto quote2 = line.find('"', quote1 + 1);
+      if (quote1 != std::string::npos && quote2 != std::string::npos) {
+        std::string color_str = line.substr(quote1 + 1, quote2 - quote1 - 1);
+        if (color_str.length() > 0 && color_str[0] == '#') {
+          current_colors.push_back(parse_hex_color(color_str));
+        }
+      }
+    }
   }
   
   // Save last theme

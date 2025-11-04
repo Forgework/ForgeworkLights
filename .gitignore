@@ -5,3 +5,10 @@ build/
 *.so
 *.dll
 *.dSYM/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python

@@ -10,3 +10,9 @@ gamma_exponent = 0.45
 
 color_order = "RGB"
 tool_path = "/usr/bin/framework_tool"
+
+# LED Theme Setting
+# Set to "match" to follow Omarchy theme, or specify a theme name
+# Leave empty or omit to default to matching Omarchy theme
+# led_theme = "match"
+# led_theme = "catppuccin"

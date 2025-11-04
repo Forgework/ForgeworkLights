@@ -50,6 +50,7 @@ int ARGBDaemon::run() {
   // State
   int wd_current = -1;
   int wd_palette_dir = -1;
+  int wd_brightness_dir = -1;
   std::string current_dir;
   std::optional<ThemePaths> theme;
   std::optional<Palette> palette;
@@ -69,23 +70,55 @@ int ARGBDaemon::run() {
     log(std::string("watching dir: ") + current_dir);
   }
 
+  // Watch brightness file
+  std::string brightness_dir = config_base() + "/omarchy-argb";
+  std::filesystem::create_directories(brightness_dir);
+  wd_brightness_dir = add_watch(brightness_dir);
+  log(std::string("watching brightness dir: ") + brightness_dir);
+
+  auto read_led_theme_preference = [&]() -> std::string {
+    // Read LED theme preference from config file
+    std::string pref_file = config_base() + "/omarchy-argb/led-theme";
+    std::ifstream in(pref_file);
+    if (!in.good()) return "match";  // Default to matching Omarchy theme
+    std::string pref;
+    std::getline(in, pref);
+    // Trim whitespace
+    pref.erase(0, pref.find_first_not_of(" \t\n\r"));
+    pref.erase(pref.find_last_not_of(" \t\n\r") + 1);
+    return pref.empty() ? "match" : pref;
+  };
+
   auto load_theme = [&](){
-    theme = resolve_theme();
-    if (!theme) { log("resolve_theme: none"); return; }
-    log(std::string("theme dir: ") + theme->theme_dir);
-    // Always watch the theme directory for any palette source changes
-    palette_dir = theme->theme_dir;
-    if (wd_palette_dir >= 0) { inotify_rm_watch(fd, wd_palette_dir); wd_palette_dir = -1; }
-    wd_palette_dir = add_watch(palette_dir);
-    log(std::string("watching palette dir: ") + palette_dir);
-    // Try loading via priority list from the theme directory
-    if (theme->palette_file)
-      palette_path = *theme->palette_file; else palette_path.clear();
-    palette = load_palette_from_theme_dir(palette_dir);
-    if (palette) {
-      log("palette loaded from theme directory");
+    std::string led_theme_pref = read_led_theme_preference();
+    log(std::string("LED theme preference: ") + led_theme_pref);
+    
+    if (led_theme_pref == "match") {
+      // Match Omarchy theme via symlink
+      theme = resolve_theme();
+      if (!theme) { log("resolve_theme: none"); return; }
+      log(std::string("theme dir: ") + theme->theme_dir);
+      // Always watch the theme directory for any palette source changes
+      palette_dir = theme->theme_dir;
+      if (wd_palette_dir >= 0) { inotify_rm_watch(fd, wd_palette_dir); wd_palette_dir = -1; }
+      wd_palette_dir = add_watch(palette_dir);
+      log(std::string("watching palette dir: ") + palette_dir);
+      // Try loading via priority list from the theme directory
+      if (theme->palette_file)
+        palette_path = *theme->palette_file; else palette_path.clear();
+      palette = load_palette_from_theme_dir(palette_dir);
+      if (palette) {
+        log("palette loaded from theme directory");
+      } else {
+        log("no palette could be parsed from theme directory");
+      }
     } else {
-      log("no palette could be parsed from theme directory");
+      // Use specific LED theme from database - don't follow Omarchy symlink
+      log(std::string("Using LED-specific theme: ") + led_theme_pref);
+      // Theme database is already loaded, colors will be retrieved in compose()
+      // Clear palette so compose() uses database colors
+      palette = std::nullopt;
+      theme = std::nullopt;
     }
   };
 
@@ -119,6 +152,15 @@ int ARGBDaemon::run() {
     out << "}\n";
   };
 
+  // Sync themes from Omarchy directory on startup
+  log("syncing themes from omarchy directory...");
+  int sync_rc = std::system("python3 /usr/local/bin/omarchy-argb-sync-themes 2>/dev/null");
+  if (sync_rc == 0) {
+    log("theme sync completed");
+  } else {
+    log("theme sync failed or no changes");
+  }
+
   // Load theme database
   ThemeDatabase theme_db;
   const char* home = std::getenv("HOME");
@@ -134,7 +176,19 @@ int ARGBDaemon::run() {
     
     // Try to get colors from database first
     std::optional<ThemeColors> db_colors;
-    if (theme) {
+    std::string led_theme_pref = read_led_theme_preference();
+    
+    if (led_theme_pref != "match") {
+      // Use LED-specific theme from database
+      db_colors = theme_db.get(led_theme_pref);
+      if (db_colors) {
+        log(std::string("Using LED theme from database: ") + led_theme_pref + 
+            " with " + std::to_string(db_colors->colors.size()) + " colors");
+      } else {
+        log(std::string("Failed to load LED theme from database: ") + led_theme_pref);
+      }
+    } else if (theme) {
+      // Match Omarchy theme
       std::string theme_name = std::filesystem::path(theme->theme_dir).filename().string();
       db_colors = theme_db.get(theme_name);
     }
@@ -235,6 +289,17 @@ int ARGBDaemon::run() {
               need_update = true;
             }
           }
+        } else if (ev->wd == wd_brightness_dir) {
+          if (ev->len > 0) {
+            std::string nm(ev->name);
+            if (nm == "brightness") {
+              log("event: brightness changed");
+              need_update = true;
+            } else if (nm == "led-theme") {
+              log("event: LED theme preference changed");
+              theme_changed = true;
+            }
+          }
         }
         i += sizeof(struct inotify_event) + ev->len;
       }
@@ -272,6 +337,7 @@ int ARGBDaemon::run() {
 
   if (wd_current>=0) inotify_rm_watch(fd, wd_current);
   if (wd_palette_dir>=0) inotify_rm_watch(fd, wd_palette_dir);
+  if (wd_brightness_dir>=0) inotify_rm_watch(fd, wd_brightness_dir);
   close(fd);
   return 0;
 }
