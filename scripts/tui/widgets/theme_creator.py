@@ -12,6 +12,35 @@ import subprocess
 import sys
 
 
+class ThemeButton(Static):
+    """Individual clickable button widget"""
+    
+    class ButtonClicked(Message):
+        def __init__(self, button_id: str):
+            super().__init__()
+            self.button_id = button_id
+    
+    def __init__(self, label: str, button_id: str, shortcut: str, **kwargs):
+        super().__init__(**kwargs)
+        self.label = label
+        self.button_id = button_id
+        self.shortcut = shortcut
+        self.can_focus = False  # Not individually focusable
+    
+    def render(self) -> str:
+        text = f"[{self.shortcut}] {self.label}"
+        if self.has_focus:
+            text = f"[bold yellow]{text}[/]"
+        return text
+    
+    def on_click(self, event) -> None:
+        self.post_message(self.ButtonClicked(self.button_id))
+    
+    def on_key(self, event) -> None:
+        if event.key == "enter":
+            self.post_message(self.ButtonClicked(self.button_id))
+
+
 class ThemeCreator(Container):
     """Widget for creating custom themes with 3-color gradients"""
     
@@ -21,19 +50,22 @@ class ThemeCreator(Container):
             super().__init__()
             self.theme_name = theme_name
     
-    color1 = reactive("#a6d189")
-    color2 = reactive("#e5c08f")
-    color3 = reactive("#e78284")
+    color1 = reactive("#ffbe0b")
+    color2 = reactive("#ff006e")
+    color3 = reactive("#3a0ca3")
     theme_name = reactive("")
     
     def __init__(self, themes_db_path: Path, **kwargs):
         super().__init__(**kwargs)
         self.themes_db_path = themes_db_path
-        self.can_focus = True
+        self.can_focus = False  # Don't take focus, let inputs handle it
     
     def on_mount(self) -> None:
-        """Initialize preview on mount"""
-        self._update_preview()
+        """Initialize preview"""
+        try:
+            self._update_preview()
+        except Exception as e:
+            print(f"Error updating preview: {e}", file=sys.stderr)
     
     def compose(self) -> ComposeResult:
         """Compose the theme creator UI"""
@@ -48,13 +80,14 @@ class ThemeCreator(Container):
             
             # Color inputs in one row (no labels)
             with Horizontal(classes="compact-row"):
-                yield Input(placeholder="#a6d189", value=self.color1, id="color1-input", classes="color-input", max_length=7)
-                yield Input(placeholder="#e5c08f", value=self.color2, id="color2-input", classes="color-input", max_length=7)
-                yield Input(placeholder="#e78284", value=self.color3, id="color3-input", classes="color-input", max_length=7)
+                yield Input(placeholder="#ffbe0b", value=self.color1, id="color1-input", classes="color-input", max_length=7)
+                yield Input(placeholder="#ff006e", value=self.color2, id="color2-input", classes="color-input", max_length=7)
+                yield Input(placeholder="#3a0ca3", value=self.color3, id="color3-input", classes="color-input", max_length=7)
             
             # Buttons below hex inputs
-            with Horizontal(classes="compact-row"):
-                yield Static("[S] Save  [C] Clear", id="button-area", classes="button-inline")
+            with Horizontal(id="button-row"):
+                yield ThemeButton("Save", "save", "S", id="save-button")
+                yield ThemeButton("Clear", "clear", "C", id="clear-button")
     
     def on_input_changed(self, event: Input.Changed) -> None:
         """Update colors and preview when inputs change"""
@@ -72,25 +105,17 @@ class ThemeCreator(Container):
         
         self._update_preview()
     
-    def on_click(self, event) -> None:
-        """Handle clicks on the button area"""
-        # Check if click was on button area
-        try:
-            button_area = self.query_one("#button-area", Static)
-            # Get the widget that was clicked
-            if event.widget == button_area:
-                # Buttons are just keyboard shortcuts, show message
-                import sys
-                print("Use [S] to save or [C] to clear", file=sys.stderr)
-        except:
-            pass
-    
-    def on_key(self, event) -> None:
-        """Handle key presses for debug"""
-        if event.key == "s":
-            print("S key pressed, calling save_theme", file=sys.stderr)
-        elif event.key == "c":
-            print("C key pressed, calling clear", file=sys.stderr)
+    def on_theme_button_button_clicked(self, message: ThemeButton.ButtonClicked) -> None:
+        """Handle button clicks"""
+        print(f"\n=== BUTTON CLICKED: {message.button_id} ===", file=sys.stderr)
+        if message.button_id == "save":
+            print("Calling action_save_theme()", file=sys.stderr)
+            self.action_save_theme()
+            print("action_save_theme() completed", file=sys.stderr)
+        elif message.button_id == "clear":
+            print("Calling action_clear()", file=sys.stderr)
+            self.action_clear()
+            print("action_clear() completed", file=sys.stderr)
     
     def _is_valid_hex(self, color: str) -> bool:
         """Check if string is a valid hex color"""
@@ -156,22 +181,56 @@ class ThemeCreator(Container):
     
     def action_save_theme(self) -> None:
         """Save the custom theme"""
-        print(f"Save action called. Theme name: '{self.theme_name}'", file=sys.stderr)
+        print(f"\n*** action_save_theme() CALLED ***", file=sys.stderr)
+        print(f"*** Theme name: '{self.theme_name}' ***", file=sys.stderr)
+        print(f"*** Color1: {self.color1} ***", file=sys.stderr)
+        print(f"*** Color2: {self.color2} ***", file=sys.stderr)
+        print(f"*** Color3: {self.color3} ***", file=sys.stderr)
+        
+        theme_input = self.query_one("#theme-name-input", Input)
+        preview = self.query_one("#gradient-preview", Static)
+        
         if not self.theme_name:
-            print("No theme name provided", file=sys.stderr)
+            print("*** ERROR: No theme name! ***", file=sys.stderr)
+            theme_input.placeholder = "⚠ Please enter a theme name!"
+            preview.update("⚠ Please enter a theme name!")
             return
         
+        print("*** Updating UI to show 'Saving...' ***", file=sys.stderr)
+        theme_input.placeholder = "Saving..."
+        preview.update("Saving...")
+        
         # Validate colors
+        print("*** Validating colors ***", file=sys.stderr)
         if not all([self._is_valid_hex(c) for c in [self.color1, self.color2, self.color3]]):
-            print("Invalid color format", file=sys.stderr)
+            print("*** ERROR: Invalid color format ***", file=sys.stderr)
+            preview.update("✗ Invalid color format")
             return
+        print("*** Colors are valid ***", file=sys.stderr)
         
         # Call generate-14-colors.py to expand the gradient
         try:
-            script_path = Path(__file__).parent.parent.parent / "scripts" / "generate-14-colors.py"
-            print(f"Script path: {script_path}", file=sys.stderr)
-            print(f"Script exists: {script_path.exists()}", file=sys.stderr)
-            print(f"Themes DB path: {self.themes_db_path}", file=sys.stderr)
+            # Try multiple possible locations for the script
+            possible_paths = [
+                Path(__file__).parent.parent.parent / "generate-14-colors.py",  # Development
+                Path("/home/tmo/Work/ForgeWorkLights/scripts/generate-14-colors.py"),  # Absolute
+                Path("/usr/local/bin/omarchy-argb-generate-14-colors"),  # Installed
+            ]
+            
+            script_path = None
+            for p in possible_paths:
+                if p.exists():
+                    script_path = p
+                    break
+            
+            if not script_path:
+                raise FileNotFoundError(f"Could not find generate-14-colors.py in any of: {possible_paths}")
+            
+            print(f"\n*** Calling generate-14-colors.py ***", file=sys.stderr)
+            print(f"*** Script path: {script_path} ***", file=sys.stderr)
+            print(f"*** Script exists: {script_path.exists()} ***", file=sys.stderr)
+            print(f"*** Themes DB path: {self.themes_db_path} ***", file=sys.stderr)
+            print(f"*** Command: python3 {script_path} {self.color1} {self.color2} {self.color3} ***", file=sys.stderr)
             result = subprocess.run(
                 ["python3", str(script_path), self.color1, self.color2, self.color3],
                 capture_output=True,
@@ -180,55 +239,74 @@ class ThemeCreator(Container):
             )
             
             # Parse the 14 colors from output
+            print(f"*** Script output: {result.stdout[:200]} ***", file=sys.stderr)
             colors_14 = [line.strip() for line in result.stdout.strip().split('\n') if line.strip().startswith('#')]
+            print(f"*** Got {len(colors_14)} colors ***", file=sys.stderr)
             
             if len(colors_14) != 14:
-                print(f"Error: Expected 14 colors, got {len(colors_14)}", file=sys.stderr)
+                print(f"*** ERROR: Expected 14 colors, got {len(colors_14)} ***", file=sys.stderr)
+                preview.update(f"✗ Got {len(colors_14)} colors, expected 14")
                 return
             
             # Load existing themes
+            print(f"*** Loading existing themes from {self.themes_db_path} ***", file=sys.stderr)
             if self.themes_db_path.exists():
                 db_data = json.loads(self.themes_db_path.read_text())
+                print(f"*** Loaded {len(db_data.get('themes', {}))} existing themes ***", file=sys.stderr)
             else:
+                print("*** Creating new themes.json ***", file=sys.stderr)
                 db_data = {"themes": {}}
             
             # Add new theme
             theme_key = self.theme_name.lower().replace(' ', '-')
+            print(f"*** Adding theme with key: {theme_key} ***", file=sys.stderr)
             db_data["themes"][theme_key] = {
                 "name": self.theme_name.title(),
                 "colors": colors_14
             }
             
             # Save back to file
+            print(f"*** Writing to {self.themes_db_path} ***", file=sys.stderr)
             self.themes_db_path.write_text(json.dumps(db_data, indent=2))
+            print(f"*** SUCCESS! File written ***", file=sys.stderr)
             
-            print(f"✓ Created theme: {self.theme_name} (key: {theme_key})", file=sys.stderr)
-            print(f"✓ Saved {len(colors_14)} colors to {self.themes_db_path}", file=sys.stderr)
+            theme_input.placeholder = f"✓ Saved '{self.theme_name}'!"
+            preview.update(f"✓ Saved '{self.theme_name}' with {len(colors_14)} colors!")
             
             # Post message to notify app
             self.post_message(self.ThemeCreated(theme_key))
             
             # Clear inputs
+            print("*** Clearing inputs ***", file=sys.stderr)
             self.action_clear()
             
         except subprocess.CalledProcessError as e:
-            print(f"Error generating colors: {e.stderr}", file=sys.stderr)
+            print(f"\n*** SUBPROCESS ERROR ***", file=sys.stderr)
+            print(f"*** Return code: {e.returncode} ***", file=sys.stderr)
+            print(f"*** Stdout: {e.stdout} ***", file=sys.stderr)
+            print(f"*** Stderr: {e.stderr} ***", file=sys.stderr)
+            theme_input.placeholder = "✗ Error generating colors"
+            preview.update(f"✗ Error: {e.stderr[:50]}")
         except Exception as e:
-            print(f"Error saving theme: {e}", file=sys.stderr)
+            print(f"\n*** EXCEPTION: {type(e).__name__} ***", file=sys.stderr)
+            print(f"*** Message: {str(e)} ***", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            theme_input.placeholder = f"✗ Error: {str(e)}"
+            preview.update(f"✗ Error: {str(e)[:50]}")
+        
+        print(f"\n*** action_save_theme() FINISHED ***\n", file=sys.stderr)
     
     def action_clear(self) -> None:
         """Clear all inputs"""
         self.theme_name = ""
-        self.color1 = "#a6d189"
-        self.color2 = "#e5c08f"
-        self.color3 = "#e78284"
-        self.query_one("#theme-name-input", Input).value = ""
+        self.color1 = "#ffbe0b"
+        self.color2 = "#ff006e"
+        self.color3 = "#3a0ca3"
+        theme_input = self.query_one("#theme-name-input", Input)
+        theme_input.value = ""
+        theme_input.placeholder = "Theme Name"
         self.query_one("#color1-input", Input).value = self.color1
         self.query_one("#color2-input", Input).value = self.color2
         self.query_one("#color3-input", Input).value = self.color3
         self._update_preview()
-    
-    BINDINGS = [
-        ("s", "save_theme", "Save theme"),
-        ("c", "clear", "Clear"),
-    ]

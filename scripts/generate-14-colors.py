@@ -53,6 +53,25 @@ def generate_gradient(colors, num_steps=14):
     return gradient
 
 def main():
+    import sys
+    
+    # Check if called with command-line colors (for custom theme creation)
+    if len(sys.argv) > 1:
+        # Mode: Generate 14 colors from 3 input colors and output to stdout
+        if len(sys.argv) != 4:
+            print("Usage: generate-14-colors.py <color1> <color2> <color3>", file=sys.stderr)
+            return 1
+        
+        input_colors = sys.argv[1:4]
+        gradient = generate_gradient(input_colors, 14)
+        
+        # Output each color on its own line for easy parsing
+        for color in gradient:
+            print(color)
+        
+        return 0
+    
+    # Mode: Update all themes in themes.json
     themes_path = Path.home() / ".config/omarchy-argb/themes.json"
     
     if not themes_path.exists():

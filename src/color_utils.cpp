@@ -32,11 +32,20 @@ void apply_gamma_brightness(std::vector<RGB>& leds, const Gamma& g, double brigh
 
 void enforce_current_cap(std::vector<RGB>& leds, double max_amps) {
   if (max_amps <= 0) return;
+  
+  // Calculate total current draw
   // Approx current per LED (A): (r+g+b)/255 * 0.06
   double total = 0.0;
   for (const auto& c : leds) total += ( (c.r + c.g + c.b) / 255.0 ) * 0.06;
+  
+  // Only limit if we're over the cap
   if (total <= max_amps) return;
+  
+  // Calculate required scale factor
   double scale = max_amps / total;
+  
+  // Apply scaling uniformly - this maintains color ratios and hue
+  // but reduces overall brightness/saturation proportionally
   for (auto& c : leds) {
     c.r = static_cast<uint8_t>(std::round(c.r * scale));
     c.g = static_cast<uint8_t>(std::round(c.g * scale));

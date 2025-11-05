@@ -126,6 +126,36 @@ ThemeCreator .preview-centered {
 
 ThemeCreator .button-inline {
     color: #a6e3a1;
+    width: 100%;
+    text-align: center;
+    padding: 0 1;
+}
+
+ThemeCreator Horizontal#button-row {
+    height: 1;
+    align: center middle;
+}
+
+ThemeButton {
+    color: #a6e3a1;
     width: auto;
+    height: 1;
+    padding: 0 1;
+    margin: 0 1;
+    text-align: center;
+}
+
+ThemeButton:focus {
+    color: #f9e2af;
+    text-style: bold;
+}
+
+ThemeButton.selected {
+    color: #f9e2af;
+    text-style: bold;
+}
+
+ThemeCreator Input.selected {
+    border: tall #f9e2af;
 }
 """

@@ -249,7 +249,7 @@ int ARGBDaemon::run() {
     }
     double brightness = read_brightness();
     apply_gamma_brightness(leds, gamma, brightness);
-    enforce_current_cap(leds, cfg_.max_current_amps);
+    // enforce_current_cap(leds, cfg_.max_current_amps);  // Disabled - send raw colors
     return leds;
   };
 
