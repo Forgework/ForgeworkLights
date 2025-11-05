@@ -415,8 +415,8 @@ setup_hyprland() {
 
 # ForgeworkLights TUI Window Rules
 windowrulev2 = float, class:^(forgework-lights-tui)$
-windowrulev2 = size 1200 800, class:^(forgework-lights-tui)$
-windowrulev2 = move 100%-1220 60, class:^(forgework-lights-tui)$
+windowrulev2 = size 800 1000, class:^(forgework-lights-tui)$
+windowrulev2 = move 100%-820 60, class:^(forgework-lights-tui)$
 windowrulev2 = animation slide, class:^(forgework-lights-tui)$
 EOF
         

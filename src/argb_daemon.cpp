@@ -51,6 +51,7 @@ int ARGBDaemon::run() {
   int wd_current = -1;
   int wd_palette_dir = -1;
   int wd_brightness_dir = -1;
+  int wd_themes_db = -1;
   std::string current_dir;
   std::optional<ThemePaths> theme;
   std::optional<Palette> palette;
@@ -165,10 +166,36 @@ int ARGBDaemon::run() {
   ThemeDatabase theme_db;
   const char* home = std::getenv("HOME");
   std::string db_path = std::string(home ? home : "/") + "/.config/omarchy-argb/themes.json";
+  std::string db_dir;
   if (!theme_db.load(db_path)) {
     // Try system-wide location
     db_path = "/usr/local/share/omarchy-argb/themes.json";
     theme_db.load(db_path);
+  }
+  
+  // Watch the themes database directory for changes
+  db_dir = std::filesystem::path(db_path).parent_path().string();
+  wd_themes_db = add_watch(db_dir);
+  log(std::string("watching themes database dir: ") + db_dir);
+  
+  auto reload_theme_database = [&]() {
+    auto themes = theme_db.list_themes();
+    log(std::string("Reloading theme database from: ") + db_path);
+    if (theme_db.load(db_path)) {
+      auto new_themes = theme_db.list_themes();
+      log(std::string("Reloaded ") + std::to_string(new_themes.size()) + " themes from database");
+    } else {
+      log("Failed to reload theme database");
+    }
+  };
+  
+  // Debug: log loaded themes
+  {
+    auto themes = theme_db.list_themes();
+    log(std::string("Loaded ") + std::to_string(themes.size()) + " themes from database");
+    for (const auto& t : themes) {
+      log(std::string("  - ") + t);
+    }
   }
 
   auto compose = [&](){
@@ -298,6 +325,21 @@ int ARGBDaemon::run() {
             } else if (nm == "led-theme") {
               log("event: LED theme preference changed");
               theme_changed = true;
+            } else if (nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
+              log("event: themes database changed");
+              reload_theme_database();
+              need_update = true;
+            }
+          }
+        } else if (ev->wd == wd_themes_db) {
+          if (ev->len > 0) {
+            std::string nm(ev->name);
+            log(std::string("event in themes db dir: ") + nm);
+            // Match themes.json or any temp file that becomes themes.json
+            if (nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
+              log("event: themes database changed");
+              reload_theme_database();
+              need_update = true;
             }
           }
         }

@@ -53,19 +53,24 @@ bool ThemeDatabase::load(const std::string& path) {
   while (std::getline(file, line)) {
     line = trim(line);
     
-    // Look for theme key
+    // Look for theme key (but skip root "themes" object)
     if (line.find("\"") != std::string::npos && line.find(":") != std::string::npos && 
         line.find("{") != std::string::npos) {
-      // Save previous theme if any
-      if (!current_theme.empty() && !current_colors.empty()) {
-        themes_[current_theme] = ThemeColors{current_name, current_colors};
-      }
-      
-      // Extract theme name
+      // Extract theme name first
       auto quote1 = line.find('"');
       auto quote2 = line.find('"', quote1 + 1);
       if (quote1 != std::string::npos && quote2 != std::string::npos) {
-        current_theme = line.substr(quote1 + 1, quote2 - quote1 - 1);
+        std::string theme_key = line.substr(quote1 + 1, quote2 - quote1 - 1);
+        
+        // Skip the root "themes" object
+        if (theme_key == "themes") continue;
+        
+        // Save previous theme if any
+        if (!current_theme.empty() && !current_colors.empty()) {
+          themes_[current_theme] = ThemeColors{current_name, current_colors};
+        }
+        
+        current_theme = theme_key;
         current_colors.clear();
         current_name.clear();
       }

@@ -90,6 +90,20 @@ ThemeCreator {
     border-right: solid cyan;
 }
 
+ThemeCreator #theme-creator-main {
+    width: 100%;
+    height: auto;
+    layout: horizontal;
+    align: left top;
+}
+
+ThemeCreator #theme-controls {
+    width: 55%;
+    min-width: 50;
+    height: auto;
+    layout: vertical;
+}
+
 ThemeCreator .compact-row {
     width: 100%;
     height: auto;
@@ -157,5 +171,62 @@ ThemeButton.selected {
 
 ThemeCreator Input.selected {
     border: tall #f9e2af;
+}
+
+/* Color Selector Styling */
+ThemeCreator ColorSelector {
+    width: 45%;
+    height: auto;
+    padding: 1;
+    margin: 0 0 0 1;
+    background: #181825;
+    border: solid #45475a;
+    display: none;
+}
+
+ThemeCreator ColorSelector:focus {
+    border: solid #89b4fa;
+}
+
+ThemeCreator ColorSelector #color-grid {
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+ThemeCreator ColorSelector #color-info {
+    width: 100%;
+    height: auto;
+    text-align: center;
+    color: #cdd6f4;
+}
+
+/* Animations Panel Styling */
+AnimationsPanel {
+    width: 100%;
+    height: auto;
+    max-height: 15;
+    padding: 1 2;
+    scrollbar-size: 0 0;
+    overflow-y: auto;
+    border-left: solid cyan;
+    border-right: solid cyan;
+    border-bottom: none;
+    border-top: none;
+}
+
+AnimationsPanel:focus {
+    border-left: solid cyan;
+    border-right: solid cyan;
+}
+
+AnimationsPanel #animations-content {
+    width: 100%;
+    height: auto;
+}
+
+AnimationsPanel #animations-list {
+    width: 100%;
+    height: auto;
 }
 """

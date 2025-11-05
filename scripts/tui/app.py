@@ -30,7 +30,8 @@ from .widgets import (
     GradientPanel,
     BrightnessPanel,
     LogsModal,
-    ThemeCreator
+    ThemeCreator,
+    AnimationsPanel
 )
 
 
@@ -61,6 +62,8 @@ class ForgeworkLightsTUI(App):
             yield GradientPanel(id="gradient-panel")
             yield BorderMiddle("Create Custom Theme")
             yield ThemeCreator(THEMES_DB_PATH, id="theme-creator")
+            yield BorderMiddle("Animations")
+            yield AnimationsPanel(id="animations-panel")
             yield BorderMiddle("Brightness")
             yield Spacer()
             yield BrightnessPanel(id="brightness-panel")
@@ -70,7 +73,7 @@ class ForgeworkLightsTUI(App):
     def on_mount(self) -> None:
         """Initialize and start auto-refresh"""
         self.title = "ForgeworkLights"
-        self.sub_title = "[Tab] Switch  [↑↓←→] Navigate  [Enter] Apply  [S] Save Theme  [C] Clear  [L] Logs  [Ctrl+Q] Quit"
+        self.sub_title = "[Tab] Switch  [↑↓←→] Navigate  [Enter] Apply  [S] Save  [C] Clear  [P] Color Picker  [L] Logs  [Ctrl+Q] Quit"
         self.refresh_status()
         # Auto-refresh every 2 seconds
         self.update_timer = self.set_interval(AUTO_REFRESH_INTERVAL, self.refresh_status)
@@ -255,3 +258,110 @@ class ForgeworkLightsTUI(App):
         gradient_panel._theme_list = []  # Clear the list
         gradient_panel._update_display()  # This will rebuild the theme list
         self.refresh_status()
+    
+    def on_gradient_panel_theme_edit_requested(self, message: GradientPanel.ThemeEditRequested) -> None:
+        """Handle theme edit request from gradient panel"""
+        print(f"Edit requested for theme: {message.theme_key}", file=sys.stderr)
+        # Load the theme into the theme creator
+        theme_creator = self.query_one("#theme-creator", ThemeCreator)
+        theme_creator.load_theme_for_editing(message.theme_key, message.theme_name, message.colors)
+    
+    def on_gradient_panel_theme_delete_requested(self, message: GradientPanel.ThemeDeleteRequested) -> None:
+        """Handle theme delete request from gradient panel"""
+        print(f"Delete requested for theme: {message.theme_key}", file=sys.stderr)
+        
+        try:
+            # Load themes database
+            if not THEMES_DB_PATH.exists():
+                print("Themes database not found", file=sys.stderr)
+                return
+            
+            db_data = json.loads(THEMES_DB_PATH.read_text())
+            
+            if "themes" in db_data and message.theme_key in db_data["themes"]:
+                # Delete the theme
+                del db_data["themes"][message.theme_key]
+                
+                # Save back to file
+                THEMES_DB_PATH.write_text(json.dumps(db_data, indent=2))
+                print(f"Deleted theme: {message.theme_name}", file=sys.stderr)
+                
+                # Refresh the gradient panel to update the list
+                gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+                gradient_panel._theme_list = []
+                gradient_panel._update_display()
+                self.refresh_status()
+            else:
+                print(f"Theme not found in database: {message.theme_key}", file=sys.stderr)
+        except Exception as e:
+            print(f"Error deleting theme: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+    
+    def on_gradient_panel_theme_sync_requested(self, message: GradientPanel.ThemeSyncRequested) -> None:
+        """Handle theme sync request from gradient panel"""
+        print("\n=== Theme sync requested ===", file=sys.stderr)
+        
+        try:
+            # Run sync-themes.py as a subprocess to avoid import issues
+            import subprocess
+            from pathlib import Path
+            
+            # Find the sync script - try multiple possible locations
+            possible_paths = [
+                Path(__file__).parent.parent / "sync-themes.py",  # scripts/sync-themes.py
+                Path("/home/tmo/Work/ForgeWorkLights/scripts/sync-themes.py"),  # Absolute path
+            ]
+            
+            sync_script = None
+            for path in possible_paths:
+                print(f"Checking for sync script at: {path}", file=sys.stderr)
+                if path.exists():
+                    sync_script = path
+                    print(f"Found sync script at: {sync_script}", file=sys.stderr)
+                    break
+            
+            if not sync_script:
+                print(f"ERROR: Sync script not found. Tried: {possible_paths}", file=sys.stderr)
+                return
+            
+            # Run the sync script
+            print(f"Running: python3 {sync_script} --verbose", file=sys.stderr)
+            result = subprocess.run(
+                ["python3", str(sync_script), "--verbose"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            print(f"Sync return code: {result.returncode}", file=sys.stderr)
+            if result.stdout:
+                print(f"Sync stdout:\n{result.stdout}", file=sys.stderr)
+            if result.stderr:
+                print(f"Sync stderr:\n{result.stderr}", file=sys.stderr)
+            
+            if result.returncode == 0:
+                print("Sync completed successfully", file=sys.stderr)
+            else:
+                print(f"Sync failed with code {result.returncode}", file=sys.stderr)
+            
+            # Refresh the gradient panel to show new themes
+            print("Refreshing theme list...", file=sys.stderr)
+            gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+            gradient_panel._theme_list = []
+            gradient_panel._update_display()
+            self.refresh_status()
+            print("Theme list refreshed", file=sys.stderr)
+            
+        except subprocess.TimeoutExpired:
+            print("ERROR: Sync timed out after 10 seconds", file=sys.stderr)
+        except Exception as e:
+            print(f"ERROR: Exception during sync: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+    
+    def on_animations_panel_animation_selected(self, message: AnimationsPanel.AnimationSelected) -> None:
+        """Handle animation selection"""
+        print(f"Animation selected: {message.animation_name}", file=sys.stderr)
+        # TODO: Implement animation backend functionality
+        # For now, just log the selection
