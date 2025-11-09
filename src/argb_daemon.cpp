@@ -4,6 +4,7 @@
 #include "palette_loader.hpp"
 #include "color_utils.hpp"
 #include "theme_database.hpp"
+#include "animations.hpp"
 #include <sys/inotify.h>
 #include <unistd.h>
 #include <vector>
@@ -17,7 +18,8 @@
 #include <cstdio>
 #include <pwd.h>
 #include <sys/types.h>
- #include <cmath>
+#include <cmath>
+#include <memory>
 
 namespace omarchy {
 
@@ -88,6 +90,19 @@ int ARGBDaemon::run() {
     pref.erase(0, pref.find_first_not_of(" \t\n\r"));
     pref.erase(pref.find_last_not_of(" \t\n\r") + 1);
     return pref.empty() ? "match" : pref;
+  };
+  
+  auto read_animation_preference = [&]() -> std::string {
+    // Read animation preference from config file
+    std::string anim_file = config_base() + "/omarchy-argb/animation";
+    std::ifstream in(anim_file);
+    if (!in.good()) return "static";  // Default to static
+    std::string anim;
+    std::getline(in, anim);
+    // Trim whitespace
+    anim.erase(0, anim.find_first_not_of(" \t\n\r"));
+    anim.erase(anim.find_last_not_of(" \t\n\r") + 1);
+    return anim.empty() ? "static" : anim;
   };
 
   auto load_theme = [&](){
@@ -280,9 +295,72 @@ int ARGBDaemon::run() {
     return leds;
   };
 
+  // Helper to get theme colors as hex strings for animations
+  auto get_theme_colors_hex = [&]() -> std::vector<std::string> {
+    std::vector<std::string> colors;
+    std::string led_theme_pref = read_led_theme_preference();
+    std::optional<ThemeColors> db_colors;
+    
+    if (led_theme_pref != "match") {
+      db_colors = theme_db.get(led_theme_pref);
+    } else if (theme) {
+      std::string theme_name = std::filesystem::path(theme->theme_dir).filename().string();
+      db_colors = theme_db.get(theme_name);
+    }
+    
+    if (db_colors && db_colors->colors.size() >= 3) {
+      for (const auto& c : db_colors->colors) {
+        char buf[8];
+        std::snprintf(buf, sizeof(buf), "#%02X%02X%02X", c.r, c.g, c.b);
+        colors.push_back(std::string(buf));
+      }
+    }
+    return colors;
+  };
+  
+  // Helper to create animation based on name
+  auto create_animation = [&](const std::string& anim_name) -> std::unique_ptr<BaseAnimation> {
+    std::vector<std::string> theme_colors = get_theme_colors_hex();
+    if (theme_colors.empty()) {
+      // Fallback colors
+      theme_colors = {"#8a8a8d", "#9a8d79", "#aa9065", "#bb9351", "#cb963d", "#dc9929", 
+                      "#ec9c15", "#f0940c", "#e7800e", "#dd6c11", "#d45714", "#cb4416", 
+                      "#c22f19", "#b91c1c"};
+    }
+    
+    if (anim_name == "static") {
+      return std::make_unique<StaticAnimation>(cfg_.led_count, theme_colors);
+    } else if (anim_name == "breathe") {
+      return std::make_unique<BreatheAnimation>(cfg_.led_count, theme_colors);
+    } else if (anim_name == "wave") {
+      return std::make_unique<WaveAnimation>(cfg_.led_count, theme_colors);
+    } else if (anim_name == "ripple") {
+      return std::make_unique<RippleAnimation>(cfg_.led_count, theme_colors);
+    } else if (anim_name == "runner") {
+      return std::make_unique<RunnerAnimation>(cfg_.led_count, theme_colors);
+    } else if (anim_name == "bounce") {
+      return std::make_unique<BounceAnimation>(cfg_.led_count, theme_colors);
+    } else if (anim_name == "sparkle") {
+      return std::make_unique<SparkleAnimation>(cfg_.led_count, theme_colors);
+    } else if (anim_name == "strobe") {
+      return std::make_unique<StrobeAnimation>(cfg_.led_count, theme_colors);
+    } else if (anim_name == "gradient-shift") {
+      return std::make_unique<GradientShiftAnimation>(cfg_.led_count, theme_colors);
+    } else {
+      // Default to static
+      return std::make_unique<StaticAnimation>(cfg_.led_count, theme_colors);
+    }
+  };
+  
   // Initial resolve and send
   load_theme();
-  auto leds = compose();
+  std::string current_animation = read_animation_preference();
+  std::unique_ptr<BaseAnimation> animation = create_animation(current_animation);
+  log(std::string("Created animation: ") + current_animation);
+  
+  auto leds = animation->render_frame();
+  double brightness = read_brightness();
+  apply_gamma_brightness(leds, gamma, brightness);
   tool.sendFrame(0, leds, cfg_.color_order);
   write_state(leds);
   if (!leds.empty()) {
@@ -292,10 +370,14 @@ int ARGBDaemon::run() {
   }
   prev_frame = leds;
 
-  // Event loop
+  // Event loop - runs animation frames at 30 FPS
   char buf[4096];
+  auto frame_start = std::chrono::steady_clock::now();
+  const int target_fps = 30;
+  const auto frame_duration = std::chrono::milliseconds(1000 / target_fps);
+  
   for(;;){
-    bool need_update = false;
+    bool animation_changed = false;
     bool theme_changed = false;
 
     ssize_t n = read(fd, buf, sizeof(buf));
@@ -313,7 +395,7 @@ int ARGBDaemon::run() {
             std::string nm(ev->name);
             if (nm == "btop.theme" || nm == "palette.json" || nm == "theme.json") {
               log(std::string("event: palette source changed: ") + nm);
-              need_update = true;
+              theme_changed = true;
             }
           }
         } else if (ev->wd == wd_brightness_dir) {
@@ -321,25 +403,27 @@ int ARGBDaemon::run() {
             std::string nm(ev->name);
             if (nm == "brightness") {
               log("event: brightness changed");
-              need_update = true;
+              // Brightness changes don't need animation recreation
             } else if (nm == "led-theme") {
               log("event: LED theme preference changed");
               theme_changed = true;
+            } else if (nm == "animation") {
+              log("event: animation preference changed");
+              animation_changed = true;
             } else if (nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
               log("event: themes database changed");
               reload_theme_database();
-              need_update = true;
+              theme_changed = true;
             }
           }
         } else if (ev->wd == wd_themes_db) {
           if (ev->len > 0) {
             std::string nm(ev->name);
             log(std::string("event in themes db dir: ") + nm);
-            // Match themes.json or any temp file that becomes themes.json
             if (nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
               log("event: themes database changed");
               reload_theme_database();
-              need_update = true;
+              theme_changed = true;
             }
           }
         }
@@ -349,32 +433,42 @@ int ARGBDaemon::run() {
 
     if (theme_changed) {
       load_theme();
-      need_update = true;
+      // Recreate animation with new theme colors
+      current_animation = read_animation_preference();
+      animation = create_animation(current_animation);
+      log(std::string("Recreated animation with new theme: ") + current_animation);
+    }
+    
+    if (animation_changed) {
+      // Animation type changed - recreate
+      current_animation = read_animation_preference();
+      animation = create_animation(current_animation);
+      log(std::string("Switched to animation: ") + current_animation);
     }
 
-    if (need_update) {
-      auto now = std::chrono::steady_clock::now();
-      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_send).count();
-      if (elapsed < 50) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50 - elapsed));
-      }
-      leds = compose();
-      if (leds.size() == prev_frame.size() && std::memcmp(leds.data(), prev_frame.data(), leds.size()*sizeof(RGB)) == 0) {
-        // no change
-      } else {
-        tool.sendFrame(0, leds, cfg_.color_order);
+    // Render next animation frame
+    leds = animation->render_frame();
+    double brightness = read_brightness();
+    apply_gamma_brightness(leds, gamma, brightness);
+    
+    // Send frame if changed
+    if (leds.size() != prev_frame.size() || std::memcmp(leds.data(), prev_frame.data(), leds.size()*sizeof(RGB)) != 0) {
+      tool.sendFrame(0, leds, cfg_.color_order);
+      // Only write state periodically to avoid excessive I/O
+      static int frame_count = 0;
+      if (++frame_count % 30 == 0) { // Every second at 30 FPS
         write_state(leds);
-        if (!leds.empty()) {
-          auto c = leds[0];
-          char bufc[16]; std::snprintf(bufc, sizeof(bufc), "#%02X%02X%02X", c.r, c.g, c.b);
-          log(std::string("sent frame, first LED ") + bufc);
-        }
-        prev_frame = leds;
-        last_send = std::chrono::steady_clock::now();
       }
+      prev_frame = leds;
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    // Maintain target FPS
+    auto frame_end = std::chrono::steady_clock::now();
+    auto elapsed = frame_end - frame_start;
+    if (elapsed < frame_duration) {
+      std::this_thread::sleep_for(frame_duration - elapsed);
+    }
+    frame_start = std::chrono::steady_clock::now();
   }
 
   if (wd_current>=0) inotify_rm_watch(fd, wd_current);

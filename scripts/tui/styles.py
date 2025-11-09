@@ -223,10 +223,36 @@ AnimationsPanel:focus {
 AnimationsPanel #animations-content {
     width: 100%;
     height: auto;
+    layout: horizontal;
+}
+
+AnimationsPanel #animations-left {
+    width: 50%;
+    height: auto;
+}
+
+AnimationsPanel #animations-left:focus-within {
+    border-right: solid cyan;
+}
+
+AnimationsPanel #animations-right {
+    width: 50%;
+    height: auto;
+    padding-left: 2;
 }
 
 AnimationsPanel #animations-list {
     width: 100%;
     height: auto;
+}
+
+ParameterSlider {
+    width: 100%;
+    height: 1;
+    margin-bottom: 1;
+}
+
+ParameterSlider:focus {
+    background: #313244;
 }
 """

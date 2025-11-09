@@ -2,12 +2,12 @@
 Logs modal widget for ForgeworkLights TUI
 """
 import subprocess
-import threading
 from textual.screen import ModalScreen
 from textual.containers import Container, ScrollableContainer
 from textual.widgets import Static
 from textual.app import ComposeResult
 from textual.timer import Timer
+from textual.worker import Worker
 
 
 class LogsContent(ScrollableContainer):
@@ -35,8 +35,8 @@ class LogsModal(ModalScreen):
     
     def __init__(self):
         super().__init__()
-        self._loading = True
         self._refresh_timer: Timer | None = None
+        self._is_mounted = False
     
     def compose(self) -> ComposeResult:
         with Container(id="logs-modal"):
@@ -47,53 +47,64 @@ class LogsModal(ModalScreen):
     
     def on_mount(self) -> None:
         """Start log fetching and auto-refresh"""
-        self._loading = True
+        self._is_mounted = True
         self._fetch_logs()
         # Auto-refresh every 2 seconds
         self._refresh_timer = self.set_interval(2.0, self._fetch_logs)
     
     def _fetch_logs(self) -> None:
-        """Fetch logs in background thread"""
-        if not self._loading and hasattr(self, '_refresh_timer') and not self._refresh_timer:
+        """Fetch logs using worker"""
+        if not self._is_mounted:
             return
         
-        def get_logs():
-            try:
-                result = subprocess.run(
-                    ["journalctl", "--user", "-u", "omarchy-argb", "-n", "100", "--no-pager"],
-                    capture_output=True,
-                    text=True,
-                    timeout=2
-                )
-                if result.returncode == 0:
-                    logs = result.stdout.strip() or "No logs available"
-                else:
-                    logs = f"Error fetching logs: {result.stderr}"
-            except subprocess.TimeoutExpired:
-                logs = "Error: Log fetch timed out"
-            except Exception as e:
-                logs = f"Error: {e}"
-            
-            # Update UI on main thread
-            self.app.call_from_thread(self._update_logs, logs)
-        
-        # Run in background thread
-        thread = threading.Thread(target=get_logs, daemon=True)
-        thread.start()
+        # Run fetch in worker
+        self.run_worker(self._get_logs_worker, thread=True, group="logs")
+    
+    def _get_logs_worker(self) -> str:
+        """Worker function to fetch logs (runs in thread)"""
+        try:
+            result = subprocess.run(
+                ["journalctl", "--user", "-u", "omarchy-argb", "-n", "100", "--no-pager"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                return result.stdout.strip() or "No logs available"
+            else:
+                return f"Error fetching logs: {result.stderr}"
+        except subprocess.TimeoutExpired:
+            return "Error: Log fetch timed out"
+        except Exception as e:
+            return f"Error: {e}"
+    
+    def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
+        """Handle worker completion"""
+        if event.worker.group == "logs" and event.worker.is_finished:
+            if event.worker.result:
+                self._update_logs(event.worker.result)
     
     def _update_logs(self, logs: str) -> None:
         """Update logs display (called from main thread)"""
+        if not self._is_mounted:
+            return
+        
         try:
             content = self.query_one("#logs-content", LogsContent)
             content.set_logs(logs)
             # Auto-scroll to bottom to show latest logs
             content.scroll_end(animate=False)
-        except Exception as e:
+        except Exception:
             pass  # Modal might have been closed
     
     def action_dismiss(self) -> None:
         """Close the modal"""
-        self._loading = False  # Stop any pending updates
+        self._is_mounted = False  # Stop any pending updates
         if self._refresh_timer:
             self._refresh_timer.stop()
+            self._refresh_timer = None
+        
+        # Cancel any running workers
+        self.workers.cancel_group(self, "logs")
+        
         self.dismiss()

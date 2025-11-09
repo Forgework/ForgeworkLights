@@ -12,3 +12,7 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+
+# Debug/log files
+*.log
+tui-debug.log

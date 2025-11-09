@@ -4,11 +4,17 @@ Main ForgeworkLights TUI Application
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.timer import Timer
+from textual.worker import Worker, WorkerState
+import os
+import select
+import struct
+import traceback
 
 from .constants import (
     STATE_FILE,
@@ -16,6 +22,7 @@ from .constants import (
     THEMES_DB_PATH,
     THEME_SYMLINK,
     LED_THEME_FILE,
+    ANIMATION_FILE,
     DAEMON_BINARY,
     AUTO_REFRESH_INTERVAL
 )
@@ -51,6 +58,11 @@ class ForgeworkLightsTUI(App):
         self.state_file = STATE_FILE
         self.brightness_file = BRIGHTNESS_FILE
         self.update_timer: Timer | None = None
+        
+        self.update_timer = None
+        self.inotify_fd = None
+        self.inotify_worker = None
+        self.last_omarchy_theme = None
     
     def compose(self) -> ComposeResult:
         with Container(id="main-panel"):
@@ -71,18 +83,36 @@ class ForgeworkLightsTUI(App):
             yield ControlFooterBorder()
     
     def on_mount(self) -> None:
-        """Initialize and start auto-refresh"""
+        """Initialize the app"""
         self.title = "ForgeworkLights"
         self.sub_title = "[Tab] Switch  [↑↓←→] Navigate  [Enter] Apply  [S] Save  [C] Clear  [P] Color Picker  [L] Logs  [Ctrl+Q] Quit"
         self.refresh_status()
-        # Auto-refresh every 2 seconds
-        self.update_timer = self.set_interval(AUTO_REFRESH_INTERVAL, self.refresh_status)
+        # Start periodic update every 2 seconds (only for daemon status now)
+        # Brightness, theme, and themes.json are all handled by inotify
+        self.update_timer = self.set_interval(AUTO_REFRESH_INTERVAL, self._refresh_daemon_status)
+        
+        # Start watching for Omarchy theme changes (inotify-based)
+        self._start_theme_watcher()
+        
         # Focus the gradient panel for keyboard navigation
         gradient_panel = self.query_one("#gradient-panel", GradientPanel)
         gradient_panel.focus()
     
+    def _refresh_daemon_status(self) -> None:
+        """Refresh only daemon status (polling - can't use inotify for process check)"""
+        try:
+            result = subprocess.run(["pgrep", "-x", "omarchy-argb"], capture_output=True)
+            daemon_status = "Running " if result.returncode == 0 else "Stopped "
+        except:
+            daemon_status = "Unknown"
+        
+        status_panel = self.query_one("#status-panel", StatusPanel)
+        status_panel.daemon_status = daemon_status
+    
     def refresh_status(self) -> None:
-        """Refresh daemon status, theme, brightness, and gradient"""
+        """Refresh all status info (called manually, not on timer)"""
+        print(f"[TUI] refresh_status() called", file=sys.stderr)
+        
         # Get daemon status
         try:
             result = subprocess.run(["pgrep", "-x", "omarchy-argb"], capture_output=True)
@@ -101,6 +131,7 @@ class ForgeworkLightsTUI(App):
                         omarchy_theme_dir = THEME_SYMLINK.resolve()
                         omarchy_theme_name = omarchy_theme_dir.name.capitalize()
                         theme = f"Match ({omarchy_theme_name})"
+                        print(f"[TUI] Status bar theme resolved: {theme}", file=sys.stderr)
                     else:
                         theme = "Match Omarchy"
                 else:
@@ -196,11 +227,13 @@ class ForgeworkLightsTUI(App):
             gradient_panel = self.query_one("#gradient-panel", GradientPanel)
             gradient_panel._update_display()
             
+            # Theme change will trigger daemon reload via inotify
+            # No need to do anything else - daemon handles animations
+            
             # Force immediate refresh of status after a short delay
             self.set_timer(0.5, self.refresh_status)
             
         except Exception as e:
-            import traceback
             print(f"Failed to apply theme: {e}", file=sys.stderr)
             traceback.print_exc()
     
@@ -254,10 +287,10 @@ class ForgeworkLightsTUI(App):
         print(f"Theme created: {message.theme_name}", file=sys.stderr)
         # Refresh the gradient panel to show the new theme
         gradient_panel = self.query_one("#gradient-panel", GradientPanel)
-        # Force a complete refresh by rebuilding the theme list
-        gradient_panel._theme_list = []  # Clear the list
-        gradient_panel._update_display()  # This will rebuild the theme list
-        self.refresh_status()
+        gradient_panel._theme_list = []  # Reset list to force reload
+        gradient_panel._update_display()
+        
+        # Theme change will trigger daemon to reload animation colors via inotify
     
     def on_gradient_panel_theme_edit_requested(self, message: GradientPanel.ThemeEditRequested) -> None:
         """Handle theme edit request from gradient panel"""
@@ -295,7 +328,6 @@ class ForgeworkLightsTUI(App):
                 print(f"Theme not found in database: {message.theme_key}", file=sys.stderr)
         except Exception as e:
             print(f"Error deleting theme: {e}", file=sys.stderr)
-            import traceback
             traceback.print_exc()
     
     def on_gradient_panel_theme_sync_requested(self, message: GradientPanel.ThemeSyncRequested) -> None:
@@ -357,11 +389,208 @@ class ForgeworkLightsTUI(App):
             print("ERROR: Sync timed out after 10 seconds", file=sys.stderr)
         except Exception as e:
             print(f"ERROR: Exception during sync: {e}", file=sys.stderr)
-            import traceback
             traceback.print_exc()
     
     def on_animations_panel_animation_selected(self, message: AnimationsPanel.AnimationSelected) -> None:
-        """Handle animation selection"""
-        print(f"Animation selected: {message.animation_name}", file=sys.stderr)
-        # TODO: Implement animation backend functionality
-        # For now, just log the selection
+        """Handle animation selection - save choice for daemon to execute"""
+        params_str = f" with params {message.params}" if message.params else ""
+        print(f"[TUI] Animation selected: {message.animation_name}{params_str}", file=sys.stderr)
+        
+        try:
+            # Save animation preference to config file
+            # Daemon will detect this change via inotify and switch animations
+            # Parameters are already saved by AnimationsPanel to animation-params.json
+            ANIMATION_FILE.parent.mkdir(parents=True, exist_ok=True)
+            ANIMATION_FILE.write_text(f"{message.animation_name}\n")
+            print(f"[TUI] Saved animation preference - daemon will handle execution", file=sys.stderr)
+            
+        except Exception as e:
+            print(f"[TUI] Failed to save animation: {e}", file=sys.stderr)
+            traceback.print_exc()
+    
+    # Animation execution is handled by the daemon
+    # TUI only saves user's animation choice to config file
+    
+    def _start_theme_watcher(self):
+        """Start inotify-based watcher for config file changes"""
+        try:
+            # Create inotify instance
+            self.inotify_fd = os.inotify_init1(os.O_NONBLOCK | os.O_CLOEXEC)
+            
+            # Watch Omarchy theme directory
+            omarchy_dir = THEME_SYMLINK.parent
+            if omarchy_dir.exists():
+                os.inotify_add_watch(
+                    self.inotify_fd,
+                    str(omarchy_dir),
+                    os.IN_ATTRIB | os.IN_CLOSE_WRITE | os.IN_MOVE_SELF | os.IN_DELETE_SELF | 
+                    os.IN_CREATE | os.IN_DELETE | os.IN_MOVED_TO | os.IN_MOVED_FROM
+                )
+                print(f"Started inotify watcher on {omarchy_dir}", file=sys.stderr)
+            
+            # Watch omarchy-argb config directory
+            config_dir = LED_THEME_FILE.parent
+            if config_dir.exists():
+                config_dir.mkdir(parents=True, exist_ok=True)
+                os.inotify_add_watch(
+                    self.inotify_fd,
+                    str(config_dir),
+                    os.IN_ATTRIB | os.IN_CLOSE_WRITE | os.IN_MOVE_SELF | os.IN_DELETE_SELF | 
+                    os.IN_CREATE | os.IN_DELETE | os.IN_MOVED_TO | os.IN_MOVED_FROM
+                )
+                print(f"Started inotify watcher on {config_dir}", file=sys.stderr)
+            
+            # Initialize current theme
+            if THEME_SYMLINK.exists() and THEME_SYMLINK.is_symlink():
+                current_theme_dir = THEME_SYMLINK.resolve()
+                self.last_omarchy_theme = current_theme_dir.name
+            
+            # Start worker to read inotify events
+            self.inotify_worker = self.run_worker(
+                self._inotify_loop,
+                name="inotify_worker",
+                group="watchers",
+                thread=True
+            )
+            
+        except Exception as e:
+            print(f"Failed to start config watcher: {e}", file=sys.stderr)
+            traceback.print_exc()
+    
+    def _inotify_loop(self):
+        """Background loop to process inotify events"""
+        print("[TUI] inotify loop started", file=sys.stderr)
+        
+        while self.inotify_fd is not None and self.inotify_worker and not self.inotify_worker.is_cancelled:
+            try:
+                # Wait for events with a timeout
+                readable, _, _ = select.select([self.inotify_fd], [], [], 1.0)
+                
+                if not readable:
+                    continue
+                
+                # Read events
+                events = os.read(self.inotify_fd, 4096)
+                offset = 0
+                
+                while offset < len(events):
+                    # Parse inotify event structure
+                    wd, mask, cookie, name_len = struct.unpack_from('iIII', events, offset)
+                    offset += struct.calcsize('iIII')
+                    
+                    name = events[offset:offset + name_len].rstrip(b'\x00').decode('utf-8')
+                    offset += name_len
+                    
+                    # Debug logging
+                    print(f"inotify event: {name} (mask: {mask})", file=sys.stderr)
+                    
+                    # Handle different file changes
+                    if name == "theme" or "theme" in name:
+                        print(f"Detected Omarchy theme change: {name}", file=sys.stderr)
+                        self.call_from_thread(self._on_omarchy_theme_changed)
+                    elif name == "led-theme":
+                        print(f"Detected led-theme change", file=sys.stderr)
+                        self.call_from_thread(self.refresh_status)
+                    elif name == "brightness":
+                        print(f"Detected brightness change", file=sys.stderr)
+                        self.call_from_thread(self._on_brightness_changed)
+                    elif name == "themes.json":
+                        print(f"Detected themes.json change", file=sys.stderr)
+                        self.call_from_thread(self._on_themes_db_changed)
+                
+            except OSError:
+                # FD was closed, exit gracefully
+                break
+            except Exception as e:
+                # Other errors, log and continue
+                print(f"[TUI] inotify loop error: {e}", file=sys.stderr)
+                pass
+        
+        print("[TUI] inotify loop exited", file=sys.stderr)
+    
+    def _on_omarchy_theme_changed(self):
+        """Handle Omarchy theme change event (from inotify)"""
+        try:
+            # Get new theme FIRST before checking anything
+            if THEME_SYMLINK.exists() and THEME_SYMLINK.is_symlink():
+                current_theme_dir = THEME_SYMLINK.resolve()
+                current_theme = current_theme_dir.name
+            else:
+                return
+            
+            # Check if it actually changed
+            if self.last_omarchy_theme == current_theme:
+                return  # No change
+            
+            print(f"[TUI] Omarchy theme changed: {self.last_omarchy_theme} -> {current_theme}", file=sys.stderr)
+            self.last_omarchy_theme = current_theme
+            
+            # Daemon will detect theme change via inotify and reload colors automatically
+            
+            # Always refresh status display to show new theme name
+            self.refresh_status()
+        
+        except Exception as e:
+            print(f"[TUI] Error handling theme change: {e}", file=sys.stderr)
+            traceback.print_exc()
+    
+    def _on_brightness_changed(self):
+        """Handle brightness file change (from inotify)"""
+        try:
+            # Read new brightness value
+            if self.brightness_file.exists():
+                brightness_pct = int(float(self.brightness_file.read_text().strip()) * 100)
+            else:
+                brightness_pct = 100
+            
+            # Update display only if not currently being adjusted by user
+            panel = self.query_one("#brightness-panel", BrightnessPanel)
+            if not hasattr(self, '_brightness_adjusting') or not self._brightness_adjusting:
+                panel.brightness = brightness_pct
+            
+            # Update status panel
+            status_panel = self.query_one("#status-panel", StatusPanel)
+            status_panel.brightness_value = brightness_pct
+        
+        except Exception as e:
+            pass  # Silently ignore
+    
+    def _on_themes_db_changed(self):
+        """Handle themes database change (from inotify)"""
+        try:
+            # Refresh gradient panel to show new/updated themes
+            gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+            gradient_panel._theme_list = []
+            gradient_panel._update_display()
+            
+            # Theme update will trigger daemon to reload animation colors via inotify
+        
+        except Exception as e:
+            pass  # Silently ignore
+    
+    def on_unmount(self):
+        """Clean up when app exits"""
+        print("[TUI] Shutting down, cleaning up workers...", file=sys.stderr)
+        
+        # Stop timers first
+        if self.update_timer:
+            self.update_timer.stop()
+        
+        # Stop inotify watcher worker
+        if self.inotify_worker:
+            print("[TUI] Cancelling inotify worker", file=sys.stderr)
+            self.inotify_worker.cancel()
+        
+        # Close inotify fd (this will cause the worker loop to exit)
+        if self.inotify_fd is not None:
+            print("[TUI] Closing inotify fd", file=sys.stderr)
+            try:
+                os.close(self.inotify_fd)
+            except:
+                pass
+            self.inotify_fd = None
+        
+        # Wait a moment for workers to finish
+        time.sleep(0.1)
+        
+        print("[TUI] Cleanup complete", file=sys.stderr)

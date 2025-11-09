@@ -9,6 +9,7 @@ from .logs import LogsModal, LogsContent
 from .theme_creator import ThemeCreator
 from .color_selector import ColorSelector
 from .animations import AnimationsPanel
+from .parameter_slider import ParameterSlider
 
 __all__ = [
     "BorderTop",
@@ -24,4 +25,5 @@ __all__ = [
     "ThemeCreator",
     "ColorSelector",
     "AnimationsPanel",
+    "ParameterSlider",
 ]
