@@ -145,16 +145,19 @@ class AnimationsPanel(Static):
         
         for idx, (anim_id, anim_name) in enumerate(self.ANIMATIONS_LIST):
             if anim_id == self.selected_animation:
-                arrow = "▶"
+                arrow = "→"
             else:
                 arrow = " "
             
             if idx == self.focused_index and list_has_focus:
-                line = f"[bold #f9e2af]{arrow} {anim_name}[/]"
+                # Match theme selection highlight: bold yellow on dark blue
+                line = f"[bold yellow on #3b4261] {arrow} {anim_name}[/]"
             elif anim_id == self.selected_animation:
-                line = f"[#a6e3a1]{arrow} {anim_name}[/]"
+                # Selected but not focused
+                line = f" {arrow} {anim_name}"
             else:
-                line = f"[#6c7086]{arrow}[/] [#cdd6f4]{anim_name}[/]"
+                # Unselected
+                line = f" {arrow} {anim_name}"
             
             lines.append(line)
         

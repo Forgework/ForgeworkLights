@@ -317,7 +317,7 @@ try:
     config = json.loads(clean_content)
     
     config["custom/forgework-lights"] = {
-        "format": "●",
+        "format": "󰛨",
         "tooltip-format": "Lights: {}",
         "exec": 'jq -r '"'"'.theme // "Off"'"'"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo "Off"',
         "interval": 2,

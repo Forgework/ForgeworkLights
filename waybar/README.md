@@ -14,7 +14,7 @@ Add ForgeworkLights module to your Waybar configuration.
    ```json
    {
      "custom/forgework-lights": {
-       "format": "󰌵",
+       "format": "󰛨",
        "tooltip": true,
        "tooltip-format": "ForgeworkLights: {}",
        "exec": "jq -r '.theme // \"No theme\"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo 'Off'",

@@ -34,7 +34,7 @@ Edit `~/.config/waybar/config` and update the ForgeworkLights module:
 ```json
 {
   "custom/forgework-lights": {
-    "format": "●",
+    "format": "󰛨",
     "tooltip-format": "Lights: {}",
     "exec": "jq -r '.theme // \"Off\"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo 'Off'",
     "interval": 2,
