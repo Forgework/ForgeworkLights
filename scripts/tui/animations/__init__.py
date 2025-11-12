@@ -11,26 +11,26 @@ This module provides the list of available animations and their configurable par
 ANIMATIONS = {
     "static": {
         "name": "Static",
-        "description": "No animation - solid gradient",
+        "description": "Solid gradient",
         "params": []
     },
     "breathe": {
         "name": "Breathe",
-        "description": "Slow fade in/out",
+        "description": "Fade in/out",
         "params": [
             ("period", "Period", 1.0, 10.0, 3.0, 0.5, "seconds")
         ]
     },
     "wave": {
         "name": "Wave",
-        "description": "Left to right flowing",
+        "description": "Flowing motion",
         "params": [
             ("speed", "Speed", 0.1, 2.0, 0.5, 0.1, "cycles/sec")
         ]
     },
     "ripple": {
         "name": "Ripple",
-        "description": "Center outward pulse",
+        "description": "Outward pulse",
         "params": [
             ("period", "Period", 0.5, 5.0, 2.0, 0.1, "seconds"),
             ("ripple_width", "Width", 0.1, 1.0, 0.3, 0.05, "ratio")
@@ -38,7 +38,7 @@ ANIMATIONS = {
     },
     "runner": {
         "name": "Runner",
-        "description": "Shooting stars with trails",
+        "description": "Shooting stars",
         "params": [
             ("speed", "Speed", 5.0, 50.0, 20.0, 5.0, "LEDs/sec"),
             ("trail_length", "Trail", 3, 15, 8, 1, "LEDs"),
@@ -47,7 +47,7 @@ ANIMATIONS = {
     },
     "bounce": {
         "name": "Bounce",
-        "description": "Segment bouncing back/forth",
+        "description": "Bouncing segment",
         "params": [
             ("period", "Period", 0.5, 5.0, 2.0, 0.1, "seconds"),
             ("segment_size", "Size", 2, 10, 5, 1, "LEDs")
@@ -55,7 +55,7 @@ ANIMATIONS = {
     },
     "sparkle": {
         "name": "Sparkle",
-        "description": "Random twinkling",
+        "description": "Twinkling",
         "params": [
             ("sparkle_rate", "Rate", 0.01, 0.5, 0.1, 0.01, "prob"),
             ("sparkle_duration", "Duration", 5, 30, 15, 1, "frames")
@@ -63,17 +63,26 @@ ANIMATIONS = {
     },
     "strobe": {
         "name": "Strobe",
-        "description": "Fast flashing",
+        "description": "Flashing",
         "params": [
             ("frequency", "Frequency", 1.0, 20.0, 10.0, 1.0, "Hz")
         ]
     },
     "gradient-shift": {
         "name": "Gradient Shift",
-        "description": "Smooth color transitions",
+        "description": "Color transitions",
         "params": [
             ("period", "Period", 2.0, 30.0, 10.0, 1.0, "seconds"),
             ("shift_amount", "Shift", 0.5, 2.0, 1.0, 0.1, "cycles")
+        ]
+    },
+    "drift": {
+        "name": "Drift",
+        "description": "Independent drifting",
+        "params": [
+            ("min_speed", "Min Speed", 0.1, 5.0, 0.3, 0.1, "seconds"),
+            ("max_speed", "Max Speed", 1.0, 20.0, 10.0, 1.0, "seconds"),
+            ("twinkle", "Twinkle", 0.0, 1.0, 0.0, 0.1, "intensity")
         ]
     }
 }

@@ -397,8 +397,8 @@ setup_hyprland() {
         return
     fi
     
-    # Check if rules already exist
-    if grep -q "forgework-lights-tui" "$hypr_config"; then
+    # Check if float rule already exists (more specific check)
+    if grep -q "^windowrulev2 = float.*forgework-lights-tui" "$hypr_config"; then
         echo -e "${YELLOW}!${NC} Hyprland window rules already configured"
         return
     fi
@@ -415,9 +415,18 @@ setup_hyprland() {
 
 # ForgeworkLights TUI Window Rules
 windowrulev2 = float, class:^(forgework-lights-tui)$
-windowrulev2 = size 800 1000, class:^(forgework-lights-tui)$
-windowrulev2 = move 100%-820 60, class:^(forgework-lights-tui)$
+# windowrulev2 = size 800 1000, class:^(forgework-lights-tui)$ # Commented out to auto-size
+windowrulev2 = move 100%-820 60, class:^(forgework-lights-tui)$ # Position from right edge
 windowrulev2 = animation slide, class:^(forgework-lights-tui)$
+windowrulev2 = noborder, class:^(forgework-lights-tui)$
+windowrulev2 = noanim, class:^(forgework-lights-tui)$
+
+# Ghostty-specific rules (ghostty uses its own class name and doesn't support CLI dimensions)
+windowrulev2 = float, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
+windowrulev2 = size 718 676, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
+windowrulev2 = move 100%-820 60, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
+windowrulev2 = noborder, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
+windowrulev2 = noanim, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
 EOF
         
         echo -e "${GREEN}✓${NC} Added Hyprland window rules"

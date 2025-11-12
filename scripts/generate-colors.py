@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate 14-color gradients for each theme in themes.json
+Generate 22-color gradients for each theme in themes.json
 Interpolates smoothly across the original 3-5 colors to create LED-specific colors
 """
 
@@ -16,7 +16,7 @@ def rgb_to_hex(r, g, b):
     """Convert RGB tuple to hex color"""
     return f"#{int(r):02x}{int(g):02x}{int(b):02x}"
 
-def generate_gradient(colors, num_steps=14):
+def generate_gradient(colors, num_steps=22):
     """Generate smooth gradient with num_steps colors from input colors"""
     if not colors:
         return []
@@ -57,13 +57,13 @@ def main():
     
     # Check if called with command-line colors (for custom theme creation)
     if len(sys.argv) > 1:
-        # Mode: Generate 14 colors from 3 input colors and output to stdout
+        # Mode: Generate 22 colors from 3 input colors and output to stdout
         if len(sys.argv) != 4:
-            print("Usage: generate-14-colors.py <color1> <color2> <color3>", file=sys.stderr)
+            print("Usage: generate-colors.py <color1> <color2> <color3>", file=sys.stderr)
             return 1
         
         input_colors = sys.argv[1:4]
-        gradient = generate_gradient(input_colors, 14)
+        gradient = generate_gradient(input_colors, 22)
         
         # Output each color on its own line for easy parsing
         for color in gradient:
@@ -86,25 +86,25 @@ def main():
         print("Error: Invalid themes.json format")
         return 1
     
-    # Generate 14 colors for each theme
+    # Generate 22 colors for each theme
     updated_count = 0
     for theme_key, theme_data in data["themes"].items():
         if "colors" in theme_data and theme_data["colors"]:
             original_colors = theme_data["colors"]
             original_count = len(original_colors)
             
-            # Generate 14-color gradient
-            new_colors = generate_gradient(original_colors, 14)
+            # Generate 22-color gradient
+            new_colors = generate_gradient(original_colors, 22)
             theme_data["colors"] = new_colors
             
-            print(f"✓ {theme_key}: {original_count} → 14 colors")
+            print(f"✓ {theme_key}: {original_count} → 22 colors")
             updated_count += 1
     
     # Save updated themes.json
     with open(themes_path, 'w') as f:
         json.dump(data, f, indent=2)
     
-    print(f"\n✓ Updated {updated_count} themes with 14-color gradients")
+    print(f"\n✓ Updated {updated_count} themes with 22-color gradients")
     print(f"✓ Saved to: {themes_path}")
     return 0
 

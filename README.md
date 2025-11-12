@@ -4,13 +4,13 @@ Synchronize Framework Desktop ARGB LED strip with Omarchy theme colors in real-t
 
 ## Overview
 
-ForgeworkLights is a C++20 daemon designed specifically for **Framework Desktop** running **Omarchy Linux**. It monitors your active Omarchy theme and automatically applies a beautiful 3-color temperature gradient from `btop.theme` to the 14-LED WS2812B strip connected to the desktop's JARGB1 header.
+ForgeworkLights is a C++20 daemon designed specifically for **Framework Desktop** running **Omarchy Linux**. It monitors your active Omarchy theme and automatically applies a beautiful 3-color temperature gradient from `btop.theme` to the 22-LED WS2812B strip connected to the desktop's JARGB1 header.
 
 ## Requirements
 
 ### Hardware
 - **Framework Desktop** (DIY Edition or Pre-built)
-- **14-LED WS2812B ARGB strip** connected to the JARGB1 3-pin header
+- **22-LED WS2812B ARGB strip** connected to the JARGB1 3-pin header
 - Strip must use **GRB color order** (standard for WS2812B)
 
 ### Software
@@ -94,7 +94,7 @@ sudo install -Dm755 scripts/options-tui.py /usr/local/bin/omarchy-argb-menu
 Create config file at `~/.config/omarchy-argb/config.toml`:
 
 ```toml
-led_count = 14
+led_count = 22
 max_current_amps = 2.0
 max_brightness = 0.7
 gamma_exponent = 1.0      # 1.0 = no correction, 0.45 = sRGB→linear
@@ -104,7 +104,7 @@ tool_path = "/usr/bin/framework_tool"
 
 ### Configuration Options
 
-- **led_count**: Number of LEDs in your strip (default: 14)
+- **led_count**: Number of LEDs in your strip (default: 22)
 - **max_current_amps**: Current limit in amps (default: 2.0A)
 - **max_brightness**: Brightness cap 0.0-1.0 (default: 0.7)
 - **gamma_exponent**: Color space correction (1.0 = passthrough)
@@ -158,7 +158,7 @@ your_username ALL=(ALL) NOPASSWD: /usr/bin/framework_tool --rgbkbd *
    - `theme[temp_start]` → First gradient color
    - `theme[temp_mid]` → Middle gradient color
    - `theme[temp_end]` → Final gradient color
-3. **Gradient Generation**: Creates smooth 3-color gradient across 14 LEDs
+3. **Gradient Generation**: Creates smooth 3-color gradient across 22 LEDs
 4. **Post-Processing**: Applies gamma correction, brightness scaling, and current limiting
 5. **LED Update**: Sends frame to hardware via `framework_tool --rgbkbd`
 6. **Live Updates**: Automatically reloads when theme changes (< 150ms latency)
@@ -188,7 +188,7 @@ theme[temp_end]="#ECEFF4"
 - **Omarchy Linux optimized**: Expects Omarchy theme directory structure
 - **btop.theme required**: Most themes include this; custom themes may need it added
 - **Sudo required**: LED control needs root access to hardware interface
-- **14 LEDs max**: Designed for JARGB1 header spec (with a .4A buffer) (can be adjusted in config)
+- **22 LEDs max**: Designed for JARGB1 header spec (with a .4A buffer) (can be adjusted in config)
 - **GRB color order**: WS2812B standard; other strips may need config change
 
 ## Troubleshooting

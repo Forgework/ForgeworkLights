@@ -15,14 +15,34 @@ Screen {
     layout: vertical;
 }
 
-StatusPanel, BorderTop, BorderMiddle, Spacer {
+#content-area {
     width: 100%;
     height: auto;
+    overflow-y: auto;
+    scrollbar-size: 1 1;
+}
+
+StatusPanel, BorderTop, BorderMiddle, CollapsibleBorderMiddle, Spacer {
+    width: 100%;
+    height: auto;
+}
+
+#animations-end-spacer {
+    height: 1fr;
+    border-left: solid cyan;
+    border-right: solid cyan;
 }
 
 BrightnessPanel {
     width: 100%;
     height: 1;
+}
+
+#bottom-section {
+    width: 100%;
+    height: auto;
+    dock: bottom;
+    background: #1e1e2e;
 }
 
 Filler {
@@ -46,7 +66,6 @@ GradientPanel:focus {
 ControlFooterBorder {
     width: 100%;
     height: auto;
-    dock: bottom;
     border: none;
 }
 
@@ -84,8 +103,8 @@ ControlFooterBorder:focus {
 
 ThemeCreator {
     width: 100%;
-    height: 1fr;
-    padding: 1 2;
+    height: auto;
+    padding: 0 1;
     border-left: solid cyan;
     border-right: solid cyan;
 }
@@ -99,7 +118,7 @@ ThemeCreator #theme-creator-main {
 
 ThemeCreator #theme-controls {
     width: 55%;
-    min-width: 50;
+    min-width: 48;
     height: auto;
     layout: vertical;
 }
@@ -109,7 +128,8 @@ ThemeCreator .compact-row {
     height: auto;
     layout: horizontal;
     align: center middle;
-    margin: 0 0 0 0;
+    margin: 0;
+    padding: 0;
 }
 
 ThemeCreator .name-input {
@@ -134,8 +154,9 @@ ThemeCreator Input:focus {
 
 ThemeCreator .preview-centered {
     width: 100%;
-    height: 3;
+    height: 2;
     content-align: center middle;
+    margin: 0;
 }
 
 ThemeCreator .button-inline {
@@ -155,7 +176,7 @@ ThemeButton {
     width: auto;
     height: 1;
     padding: 0 1;
-    margin: 0 1;
+    margin: 0;
     text-align: center;
 }
 
@@ -176,39 +197,50 @@ ThemeCreator Input.selected {
 /* Color Selector Styling */
 ThemeCreator ColorSelector {
     width: 45%;
-    height: auto;
-    padding: 1;
+    height: 14;
+    max-height: 14;
+    padding: 0;
     margin: 0 0 0 1;
     background: #181825;
     border: solid #45475a;
-    display: none;
+    overflow: hidden;
 }
 
 ThemeCreator ColorSelector:focus {
     border: solid #89b4fa;
 }
 
+ThemeCreator ColorSelector Horizontal {
+    height: 14;
+    max-height: 14;
+    overflow: hidden;
+    layout: horizontal;
+}
+
 ThemeCreator ColorSelector #color-grid {
-    width: 100%;
-    height: auto;
-    margin: 0 0 1 0;
+    width: auto;
+    height: 12;
+    max-height: 12;
+    margin: 0;
+    overflow: hidden;
 }
 
 ThemeCreator ColorSelector #color-info {
-    width: 100%;
-    height: auto;
-    text-align: center;
+    width: auto;
+    min-width: 10;
+    height: 14;
+    padding: 0 1;
+    text-align: left;
     color: #cdd6f4;
+    overflow: hidden;
 }
 
 /* Animations Panel Styling */
 AnimationsPanel {
     width: 100%;
     height: auto;
-    max-height: 15;
-    padding: 1 2;
-    scrollbar-size: 0 0;
-    overflow-y: auto;
+    padding: 1 1;
+    margin: 0;
     border-left: solid cyan;
     border-right: solid cyan;
     border-bottom: none;
@@ -238,7 +270,7 @@ AnimationsPanel #animations-left:focus-within {
 AnimationsPanel #animations-right {
     width: 50%;
     height: auto;
-    padding-left: 2;
+    padding-left: 1;
 }
 
 AnimationsPanel #animations-list {
@@ -249,7 +281,7 @@ AnimationsPanel #animations-list {
 ParameterSlider {
     width: 100%;
     height: 1;
-    margin-bottom: 1;
+    margin-bottom: 0;
 }
 
 ParameterSlider:focus {

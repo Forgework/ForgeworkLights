@@ -56,7 +56,6 @@ class ThemeCreator(Container):
     color2 = reactive("#ff006e")
     color3 = reactive("#3a0ca3")
     theme_name = reactive("")
-    show_color_picker = reactive(False)
     active_color_input = reactive(None)  # Track which color input is being edited
     
     def __init__(self, themes_db_path: Path, **kwargs):
@@ -64,14 +63,17 @@ class ThemeCreator(Container):
         self.themes_db_path = themes_db_path
         self.can_focus = False  # Don't take focus, let inputs handle it
         self.editing_theme_key = None  # Track if we're editing an existing theme
-        self.color_picker_active = False
     
     def on_mount(self) -> None:
-        """Initialize preview"""
+        """Initialize preview and color picker"""
         try:
             self._update_preview()
+            # Initialize color picker with first color
+            picker = self.query_one("#theme-color-picker", ColorSelector)
+            picker.set_color_from_hex(self.color1)
+            self.active_color_input = "color1"
         except Exception as e:
-            print(f"Error updating preview: {e}", file=sys.stderr)
+            print(f"Error initializing: {e}", file=sys.stderr)
     
     def compose(self) -> ComposeResult:
         """Compose the theme creator UI"""
@@ -97,10 +99,9 @@ class ThemeCreator(Container):
                 with Horizontal(id="button-row"):
                     yield ThemeButton("Save", "save", "S", id="save-button")
                     yield ThemeButton("Clear", "clear", "C", id="clear-button")
-                    yield ThemeButton("Color Picker", "picker", "P", id="picker-button")
             
-            # Right side: Color picker (initially hidden)
-            yield ColorSelector(width=30, height=10, id="theme-color-picker")
+            # Right side: Color picker (always visible)
+            yield ColorSelector(width=30, height=12, id="theme-color-picker")
     
     def on_input_changed(self, event: Input.Changed) -> None:
         """Update colors and preview when inputs change"""
@@ -129,10 +130,6 @@ class ThemeCreator(Container):
             print("Calling action_clear()", file=sys.stderr)
             self.action_clear()
             print("action_clear() completed", file=sys.stderr)
-        elif message.button_id == "picker":
-            print("Calling action_toggle_color_picker()", file=sys.stderr)
-            self.action_toggle_color_picker()
-            print("action_toggle_color_picker() completed", file=sys.stderr)
     
     def _is_valid_hex(self, color: str) -> bool:
         """Check if string is a valid hex color"""
@@ -150,15 +147,15 @@ class ThemeCreator(Container):
         """Update gradient preview"""
         preview = self.query_one("#gradient-preview", Static)
         
-        # Create thick 3-line gradient preview - width should span 3 color inputs (14 chars each + spacing = ~45)
+        # Create compact 2-line gradient preview - width should span 3 color inputs (14 chars each + spacing = ~45)
         gradient = self._create_gradient_preview([self.color1, self.color2, self.color3], 45)
         preview.update(gradient)
     
     def _create_gradient_preview(self, colors, width):
         """Create a gradient preview string with thick blocks"""
         lines = []
-        # Create 3 lines of thick gradient
-        for _ in range(3):
+        # Create 2 lines of compact gradient
+        for _ in range(2):
             result = []
             for i in range(width):
                 # Interpolate between the three colors
@@ -203,7 +200,7 @@ class ThemeCreator(Container):
         # Store the theme key for editing
         self.editing_theme_key = theme_key
         
-        # Extract first, middle, and last colors from the 14-color gradient
+        # Extract first, middle, and last colors from the 22-color gradient
         if len(colors) >= 3:
             self.color1 = colors[0]
             self.color2 = colors[len(colors) // 2]
@@ -259,13 +256,13 @@ class ThemeCreator(Container):
             return
         print("*** Colors are valid ***", file=sys.stderr)
         
-        # Call generate-14-colors.py to expand the gradient
+        # Call generate-colors.py to expand the gradient
         try:
             # Try multiple possible locations for the script
             possible_paths = [
-                Path(__file__).parent.parent.parent / "generate-14-colors.py",  # Development
-                Path("/home/tmo/Work/ForgeWorkLights/scripts/generate-14-colors.py"),  # Absolute
-                Path("/usr/local/bin/omarchy-argb-generate-14-colors"),  # Installed
+                Path(__file__).parent.parent.parent / "generate-colors.py",  # Development
+                Path("/home/tmo/Work/ForgeWorkLights/scripts/generate-colors.py"),  # Absolute
+                Path("/usr/local/bin/omarchy-argb-generate-colors"),  # Installed
             ]
             
             script_path = None
@@ -275,9 +272,9 @@ class ThemeCreator(Container):
                     break
             
             if not script_path:
-                raise FileNotFoundError(f"Could not find generate-14-colors.py in any of: {possible_paths}")
+                raise FileNotFoundError(f"Could not find generate-colors.py in any of: {possible_paths}")
             
-            print(f"\n*** Calling generate-14-colors.py ***", file=sys.stderr)
+            print(f"\n*** Calling generate-colors.py ***", file=sys.stderr)
             print(f"*** Script path: {script_path} ***", file=sys.stderr)
             print(f"*** Script exists: {script_path.exists()} ***", file=sys.stderr)
             print(f"*** Themes DB path: {self.themes_db_path} ***", file=sys.stderr)
@@ -289,14 +286,14 @@ class ThemeCreator(Container):
                 check=True
             )
             
-            # Parse the 14 colors from output
+            # Parse the 22 colors from output
             print(f"*** Script output: {result.stdout[:200]} ***", file=sys.stderr)
-            colors_14 = [line.strip() for line in result.stdout.strip().split('\n') if line.strip().startswith('#')]
-            print(f"*** Got {len(colors_14)} colors ***", file=sys.stderr)
+            colors_22 = [line.strip() for line in result.stdout.strip().split('\n') if line.strip().startswith('#')]
+            print(f"*** Got {len(colors_22)} colors ***", file=sys.stderr)
             
-            if len(colors_14) != 14:
-                print(f"*** ERROR: Expected 14 colors, got {len(colors_14)} ***", file=sys.stderr)
-                preview.update(f"✗ Got {len(colors_14)} colors, expected 14")
+            if len(colors_22) != 22:
+                print(f"*** ERROR: Expected 22 colors, got {len(colors_22)} ***", file=sys.stderr)
+                preview.update(f"✗ Got {len(colors_22)} colors, expected 22")
                 return
             
             # Load existing themes
@@ -320,7 +317,7 @@ class ThemeCreator(Container):
             
             db_data["themes"][theme_key] = {
                 "name": self.theme_name.title(),
-                "colors": colors_14
+                "colors": colors_22
             }
             
             # Save back to file
@@ -331,7 +328,7 @@ class ThemeCreator(Container):
             # Show success message
             action_verb = "Updated" if self.editing_theme_key else "Saved"
             theme_input.placeholder = f"✓ {action_verb} '{self.theme_name}'!"
-            preview.update(f"✓ {action_verb} '{self.theme_name}' with {len(colors_14)} colors!")
+            preview.update(f"✓ {action_verb} '{self.theme_name}' with {len(colors_22)} colors!")
             
             # Post message to notify app
             self.post_message(self.ThemeCreated(theme_key))
@@ -372,43 +369,24 @@ class ThemeCreator(Container):
         self.query_one("#color3-input", Input).value = self.color3
         self._update_preview()
     
-    def action_toggle_color_picker(self) -> None:
-        """Toggle the color picker display"""
-        picker = self.query_one("#theme-color-picker", ColorSelector)
-        
-        if self.color_picker_active:
-            # Hide color picker
-            picker.display = False
-            self.color_picker_active = False
-        else:
-            # Determine which color input has focus
-            try:
-                focused = self.app.focused
-                if focused and hasattr(focused, 'id'):
-                    if focused.id == "color1-input":
-                        self.active_color_input = "color1"
-                        picker.set_color_from_hex(self.color1)
-                    elif focused.id == "color2-input":
-                        self.active_color_input = "color2"
-                        picker.set_color_from_hex(self.color2)
-                    elif focused.id == "color3-input":
-                        self.active_color_input = "color3"
-                        picker.set_color_from_hex(self.color3)
-                    else:
-                        # Default to color1 if no color input is focused
-                        self.active_color_input = "color1"
-                        picker.set_color_from_hex(self.color1)
-                else:
+    def on_key(self, event) -> None:
+        """Handle key presses for color input focus"""
+        # When a color input gains focus, update the picker to show that color
+        try:
+            focused = self.app.focused
+            picker = self.query_one("#theme-color-picker", ColorSelector)
+            if focused and hasattr(focused, 'id'):
+                if focused.id == "color1-input":
                     self.active_color_input = "color1"
                     picker.set_color_from_hex(self.color1)
-            except:
-                self.active_color_input = "color1"
-                picker.set_color_from_hex(self.color1)
-            
-            # Show color picker
-            picker.display = True
-            self.color_picker_active = True
-            picker.focus()
+                elif focused.id == "color2-input":
+                    self.active_color_input = "color2"
+                    picker.set_color_from_hex(self.color2)
+                elif focused.id == "color3-input":
+                    self.active_color_input = "color3"
+                    picker.set_color_from_hex(self.color3)
+        except:
+            pass
     
     def on_color_selector_color_selected(self, message: ColorSelector.ColorSelected) -> None:
         """Handle color selection from picker"""
@@ -423,16 +401,3 @@ class ThemeCreator(Container):
             self.query_one("#color3-input", Input).value = message.hex_color
         
         self._update_preview()
-        
-        # Hide picker after selection
-        picker = self.query_one("#theme-color-picker", ColorSelector)
-        picker.display = False
-        self.color_picker_active = False
-        
-        # Return focus to the color input
-        if self.active_color_input == "color1":
-            self.query_one("#color1-input", Input).focus()
-        elif self.active_color_input == "color2":
-            self.query_one("#color2-input", Input).focus()
-        elif self.active_color_input == "color3":
-            self.query_one("#color3-input", Input).focus()

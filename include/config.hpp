@@ -5,7 +5,7 @@
 namespace omarchy {
 
 struct Config {
-  int led_count = 14;
+  int led_count = 22;
   double max_current_amps = 2.0;
   double max_brightness = 0.2;
   double gamma_exponent = 1; // Degamma: convert sRGB → linear RGB for LEDs

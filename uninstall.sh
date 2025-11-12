@@ -12,25 +12,19 @@ echo "  ForgeworkLights Uninstall"
 echo "========================================"
 echo ""
 
-# Turn off LEDs gracefully before uninstalling
-if command -v omarchy-argb &> /dev/null; then
-    echo "Turning off LEDs..."
-    # Send all-black frame to turn off LEDs
-    if omarchy-argb once &> /dev/null; then
-        # Override with black frame
-        if command -v framework_tool &> /dev/null; then
-            sudo framework_tool --rgbkbd 0 $(printf '0x000000 %.0s' {1..14}) &> /dev/null || true
-        fi
-    fi
-    echo -e "${GREEN}✓${NC} LEDs turned off"
-fi
-
-# Stop and disable service
+# Stop service first to prevent it from turning LEDs back on
 if systemctl --user is-active omarchy-argb.service &> /dev/null; then
     echo "Stopping service..."
     systemctl --user stop omarchy-argb.service
     systemctl --user disable omarchy-argb.service
     echo -e "${GREEN}✓${NC} Service stopped and disabled"
+fi
+
+# Turn off all 22 LEDs
+if command -v framework_tool &> /dev/null; then
+    echo "Turning off LEDs..."
+    sudo framework_tool --rgbkbd 0 $(printf '0x000000 %.0s' {1..22}) &> /dev/null || true
+    echo -e "${GREEN}✓${NC} All 22 LEDs turned off"
 fi
 
 # Remove systemd service
@@ -167,14 +161,18 @@ if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             cp "$hypr_config" "${hypr_config}.uninstall-backup"
             echo "Created backup: ${hypr_config}.uninstall-backup"
             
-            # Remove the ForgeworkLights window rules section
-            # Match from comment to the end of windowrulev2 lines
-            sed -i '/# ForgeworkLights TUI Window Rules/,/^windowrulev2.*forgework-lights-tui.*$/d' "$hypr_config"
+            # Remove all ForgeworkLights-related lines
+            # Remove the comment headers
+            sed -i '/# ForgeworkLights TUI Window Rules/d' "$hypr_config"
+            sed -i '/# Ghostty-specific rules/d' "$hypr_config"
             
-            # Also remove any standalone rules that might exist
-            sed -i '/^windowrulev2.*forgework-lights-tui.*$/d' "$hypr_config"
+            # Remove all windowrulev2 rules (including commented ones)
+            sed -i '/forgework-lights-tui/d' "$hypr_config"
             
-            # Clean up any extra blank lines (more than 2 consecutive)
+            # Remove ghostty-specific ForgeworkLights rules
+            sed -i '/com\.mitchellh\.ghostty.*ForgeworkLights/d' "$hypr_config"
+            
+            # Clean up extra blank lines
             sed -i '/^$/N;/^\n$/D' "$hypr_config"
             
             echo -e "${GREEN}✓${NC} Removed Hyprland window rules"

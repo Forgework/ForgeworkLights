@@ -133,13 +133,20 @@ public:
   }
 };
 
-// Wave - flowing gradient
+// Wave - flowing gradient with smooth color transitions
 class WaveAnimation : public BaseAnimation {
   double speed_;
+  std::vector<RGB> last_frame_;
+  double blend_factor_;
   
 public:
-  WaveAnimation(int led_count, const std::vector<std::string>& theme_colors, double speed = 0.5)
-    : BaseAnimation(led_count, theme_colors), speed_(speed) {}
+  WaveAnimation(int led_count, const std::vector<std::string>& theme_colors, double speed = 0.2)
+    : BaseAnimation(led_count, theme_colors), speed_(speed), blend_factor_(0.05) {
+    // Initialize last_frame with starting colors
+    for (int i = 0; i < led_count_; i++) {
+      last_frame_.push_back(get_led_base_color(i));
+    }
+  }
   
   std::vector<RGB> render_frame() override {
     double t = get_elapsed_time();
@@ -149,8 +156,15 @@ public:
     for (int i = 0; i < led_count_; i++) {
       double base_position = i / std::max(1.0, static_cast<double>(led_count_ - 1));
       double position = std::fmod(base_position + offset, 1.0);
-      frame.push_back(get_color_at_position(position));
+      RGB target_color = get_color_at_position(position);
+      
+      // Smoothly interpolate from last frame to target color
+      RGB smoothed = rgb_interpolate(last_frame_[i], target_color, blend_factor_);
+      frame.push_back(smoothed);
     }
+    
+    // Store this frame for next iteration
+    last_frame_ = frame;
     return frame;
   }
 };
@@ -209,11 +223,13 @@ public:
       trail_length_(trail_length), num_runners_(num_runners),
       rng_(std::random_device{}()) {
     
-    std::uniform_real_distribution<double> pos_dist(-trail_length, led_count);
     std::uniform_int_distribution<int> color_dist(0, theme_colors_.size() - 1);
     
+    // Space runners equally apart
     for (int i = 0; i < num_runners; i++) {
-      runners_.push_back({pos_dist(rng_), color_dist(rng_)});
+      double spacing = static_cast<double>(led_count) / num_runners;
+      double start_pos = i * spacing;
+      runners_.push_back({start_pos, color_dist(rng_)});
     }
   }
   
@@ -227,30 +243,37 @@ public:
     std::uniform_int_distribution<int> color_dist(0, theme_colors_.size() - 1);
     
     for (auto& runner : runners_) {
+      double prev_position = runner.position;
       runner.position += speed_ / 30.0; // Assume 30 FPS
       
-      if (runner.position > led_count_ + trail_length_) {
-        runner.position = -trail_length_;
-        runner.color_index = color_dist(rng_);
+      // Simple continuous loop - just wrap at led_count
+      if (runner.position >= static_cast<double>(led_count_)) {
+        runner.position = std::fmod(runner.position, static_cast<double>(led_count_));
+        runner.color_index = color_dist(rng_); // Change color on wrap
       }
       
       RGB runner_color = theme_colors_[runner.color_index];
-      int head_pos = static_cast<int>(runner.position);
       
+      // Render head and trail
       for (int trail_offset = 0; trail_offset < trail_length_; trail_offset++) {
-        int led_pos = head_pos - trail_offset;
-        if (led_pos >= 0 && led_pos < led_count_) {
-          double brightness = static_cast<double>(trail_length_ - trail_offset) / trail_length_;
-          brightness = brightness * brightness; // Quadratic falloff
-          
-          RGB trail_color = rgb_scale(runner_color, brightness);
-          RGB& existing = frame[led_pos];
-          
-          // Additive blending
-          existing.r = std::min(255, existing.r + trail_color.r);
-          existing.g = std::min(255, existing.g + trail_color.g);
-          existing.b = std::min(255, existing.b + trail_color.b);
-        }
+        // Calculate LED position with wrapping
+        double trail_pos = runner.position - trail_offset;
+        
+        // Handle wrapping for trail (can be negative)
+        while (trail_pos < 0) trail_pos += led_count_;
+        int led_pos = static_cast<int>(trail_pos) % led_count_;
+        
+        // Brightness falloff: head is brightest, tail fades
+        double brightness = static_cast<double>(trail_length_ - trail_offset) / trail_length_;
+        brightness = brightness * brightness; // Quadratic falloff
+        
+        RGB trail_color = rgb_scale(runner_color, brightness);
+        RGB& existing = frame[led_pos];
+        
+        // Additive blending
+        existing.r = std::min(255, existing.r + trail_color.r);
+        existing.g = std::min(255, existing.g + trail_color.g);
+        existing.b = std::min(255, existing.b + trail_color.b);
       }
     }
     
@@ -392,6 +415,66 @@ public:
       double shifted_position = std::fmod(base_position + shift, 1.0);
       frame.push_back(get_color_at_position(shifted_position));
     }
+    return frame;
+  }
+};
+
+// Drift - each LED independently drifts through gradient with optional twinkle
+class DriftAnimation : public BaseAnimation {
+  struct LEDState {
+    double gradient_position;  // Current position on gradient (0.0 to 1.0)
+    double speed;              // How fast this LED cycles (positions per second)
+    double twinkle_phase;      // Random phase offset for twinkle effect
+  };
+  
+  std::vector<LEDState> led_states_;
+  double twinkle_intensity_;
+  std::mt19937 rng_;
+  
+public:
+  DriftAnimation(int led_count, const std::vector<std::string>& theme_colors, 
+                 double min_speed = 0.3, double max_speed = 10.0, double twinkle = 0.0)
+    : BaseAnimation(led_count, theme_colors), twinkle_intensity_(twinkle), rng_(std::random_device{}()) {
+    
+    std::uniform_real_distribution<double> position_dist(0.0, 1.0);
+    // Convert seconds to positions per second (inverse)
+    std::uniform_real_distribution<double> speed_dist(1.0 / max_speed, 1.0 / min_speed);
+    std::uniform_real_distribution<double> phase_dist(0.0, 2.0 * M_PI);
+    
+    // Initialize each LED with random starting position, speed, and twinkle phase
+    for (int i = 0; i < led_count_; i++) {
+      led_states_.push_back({
+        position_dist(rng_),
+        speed_dist(rng_),
+        phase_dist(rng_)
+      });
+    }
+  }
+  
+  std::vector<RGB> render_frame() override {
+    double t = get_elapsed_time();
+    std::vector<RGB> frame;
+    
+    for (int i = 0; i < led_count_; i++) {
+      auto& state = led_states_[i];
+      
+      // Update gradient position for this LED
+      state.gradient_position = std::fmod(state.gradient_position + state.speed / 30.0, 1.0);
+      
+      // Get base color from gradient
+      RGB color = get_color_at_position(state.gradient_position);
+      
+      // Apply twinkle effect if intensity > 0
+      if (twinkle_intensity_ > 0.0) {
+        // Create subtle brightness variation using sine wave
+        double twinkle_variation = twinkle_intensity_ * std::sin(t * 3.0 + state.twinkle_phase);
+        double twinkle_factor = 1.0 - (twinkle_intensity_ * 0.5) + (twinkle_variation * 0.5);
+        color = rgb_scale(color, twinkle_factor);
+      }
+      
+      frame.push_back(color);
+    }
+    
     return frame;
   }
 };

@@ -15,7 +15,7 @@ Added the ability to edit existing themes directly from the TUI by clicking an e
 ### 2. ThemeCreator (theme_creator.py)
 - **Added editing mode**: Tracks `editing_theme_key` to know if editing vs. creating
 - **Added `load_theme_for_editing()` method**: 
-  - Extracts first, middle, and last colors from 14-color gradient
+  - Extracts first, middle, and last colors from 22-color gradient
   - Populates the creator fields with theme data
   - Shows "Editing: [theme name]" placeholder
 - **Modified `action_save_theme()`**:
@@ -42,7 +42,7 @@ Added the ability to edit existing themes directly from the TUI by clicking an e
 
 - Editing preserves the original theme key (URL-safe identifier)
 - Only the theme name and colors are editable
-- The 3-color input is expanded to 14-color gradient via `generate-14-colors.py`
+- The 3-color input is expanded to 22-color gradient via `generate-colors.py`
 - Daemon automatically reloads theme database when `themes.json` changes
 - No restart required
 
@@ -57,5 +57,5 @@ pink: #ff006e, #ff006e, #ff006e (all same color)
 - Theme creator loads: name="Pink", colors=("#ff006e", "#ff006e", "#ff006e")
 - User modifies to: "#ff0099", "#cc00ff", "#9900ff" (pink to purple gradient)
 - User presses Save
-- `pink` theme updated in database with new 14-color gradient
+- `pink` theme updated in database with new 22-color gradient
 - Daemon detects change and reloads automatically

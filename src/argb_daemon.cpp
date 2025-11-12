@@ -318,34 +318,93 @@ int ARGBDaemon::run() {
     return colors;
   };
   
+  // Helper to read animation parameters from JSON file
+  auto get_param = [&](const std::string& anim_name, const std::string& param_name, double default_val) -> double {
+    std::string params_file = config_base() + "/omarchy-argb/animation-params.json";
+    std::ifstream in(params_file);
+    if (!in.good()) return default_val;
+    
+    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    
+    // Simple JSON parsing for: { "animation": { "param": value } }
+    size_t anim_pos = content.find("\"" + anim_name + "\"");
+    if (anim_pos == std::string::npos) return default_val;
+    
+    size_t param_pos = content.find("\"" + param_name + "\"", anim_pos);
+    if (param_pos == std::string::npos) return default_val;
+    
+    size_t colon_pos = content.find(":", param_pos);
+    if (colon_pos == std::string::npos) return default_val;
+    
+    size_t value_start = colon_pos + 1;
+    while (value_start < content.size() && (content[value_start] == ' ' || content[value_start] == '\t')) {
+      value_start++;
+    }
+    
+    size_t value_end = value_start;
+    while (value_end < content.size() && (std::isdigit(content[value_end]) || content[value_end] == '.' || content[value_end] == '-')) {
+      value_end++;
+    }
+    
+    if (value_end > value_start) {
+      try {
+        return std::stod(content.substr(value_start, value_end - value_start));
+      } catch (...) {
+        return default_val;
+      }
+    }
+    
+    return default_val;
+  };
+  
   // Helper to create animation based on name
   auto create_animation = [&](const std::string& anim_name) -> std::unique_ptr<BaseAnimation> {
     std::vector<std::string> theme_colors = get_theme_colors_hex();
     if (theme_colors.empty()) {
-      // Fallback colors
-      theme_colors = {"#8a8a8d", "#9a8d79", "#aa9065", "#bb9351", "#cb963d", "#dc9929", 
-                      "#ec9c15", "#f0940c", "#e7800e", "#dd6c11", "#d45714", "#cb4416", 
-                      "#c22f19", "#b91c1c"};
+      // Fallback colors (22-color gradient)
+      theme_colors = {"#8a8a8d", "#948c81", "#9e8d76", "#a88f6b", "#b29160", "#bc9356", 
+                      "#c6954b", "#d09740", "#da9936", "#e49b2b", "#ee9d20", "#f29918", 
+                      "#ed9214", "#e88a11", "#e4820d", "#df7a0f", "#da7211", "#d66a13", 
+                      "#d16214", "#cd5a16", "#c85218", "#c3491a", "#bf411c", "#ba391e"};
     }
     
     if (anim_name == "static") {
       return std::make_unique<StaticAnimation>(cfg_.led_count, theme_colors);
     } else if (anim_name == "breathe") {
-      return std::make_unique<BreatheAnimation>(cfg_.led_count, theme_colors);
+      double period = get_param("breathe", "period", 3.0);
+      return std::make_unique<BreatheAnimation>(cfg_.led_count, theme_colors, period);
     } else if (anim_name == "wave") {
-      return std::make_unique<WaveAnimation>(cfg_.led_count, theme_colors);
+      double speed = get_param("wave", "speed", 0.5);
+      return std::make_unique<WaveAnimation>(cfg_.led_count, theme_colors, speed);
     } else if (anim_name == "ripple") {
-      return std::make_unique<RippleAnimation>(cfg_.led_count, theme_colors);
+      double period = get_param("ripple", "period", 2.0);
+      double ripple_width = get_param("ripple", "ripple_width", 0.3);
+      return std::make_unique<RippleAnimation>(cfg_.led_count, theme_colors, period, ripple_width);
     } else if (anim_name == "runner") {
-      return std::make_unique<RunnerAnimation>(cfg_.led_count, theme_colors);
+      double speed = get_param("runner", "speed", 20.0);
+      int trail_length = static_cast<int>(get_param("runner", "trail_length", 8.0));
+      int num_runners = static_cast<int>(get_param("runner", "num_runners", 2.0));
+      return std::make_unique<RunnerAnimation>(cfg_.led_count, theme_colors, speed, trail_length, num_runners);
     } else if (anim_name == "bounce") {
-      return std::make_unique<BounceAnimation>(cfg_.led_count, theme_colors);
+      double period = get_param("bounce", "period", 2.0);
+      int segment_size = static_cast<int>(get_param("bounce", "segment_size", 5.0));
+      return std::make_unique<BounceAnimation>(cfg_.led_count, theme_colors, period, segment_size);
     } else if (anim_name == "sparkle") {
-      return std::make_unique<SparkleAnimation>(cfg_.led_count, theme_colors);
+      double sparkle_rate = get_param("sparkle", "sparkle_rate", 0.1);
+      int sparkle_duration = static_cast<int>(get_param("sparkle", "sparkle_duration", 15.0));
+      return std::make_unique<SparkleAnimation>(cfg_.led_count, theme_colors, sparkle_rate, sparkle_duration);
     } else if (anim_name == "strobe") {
-      return std::make_unique<StrobeAnimation>(cfg_.led_count, theme_colors);
+      double frequency = get_param("strobe", "frequency", 10.0);
+      return std::make_unique<StrobeAnimation>(cfg_.led_count, theme_colors, frequency);
     } else if (anim_name == "gradient-shift") {
-      return std::make_unique<GradientShiftAnimation>(cfg_.led_count, theme_colors);
+      double period = get_param("gradient-shift", "period", 10.0);
+      double shift_amount = get_param("gradient-shift", "shift_amount", 1.0);
+      return std::make_unique<GradientShiftAnimation>(cfg_.led_count, theme_colors, period, shift_amount);
+    } else if (anim_name == "drift") {
+      double min_speed = get_param("drift", "min_speed", 0.3);
+      double max_speed = get_param("drift", "max_speed", 10.0);
+      double twinkle = get_param("drift", "twinkle", 0.0);
+      return std::make_unique<DriftAnimation>(cfg_.led_count, theme_colors, min_speed, max_speed, twinkle);
     } else {
       // Default to static
       return std::make_unique<StaticAnimation>(cfg_.led_count, theme_colors);
@@ -409,6 +468,9 @@ int ARGBDaemon::run() {
               theme_changed = true;
             } else if (nm == "animation") {
               log("event: animation preference changed");
+              animation_changed = true;
+            } else if (nm == "animation-params.json") {
+              log("event: animation parameters changed");
               animation_changed = true;
             } else if (nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
               log("event: themes database changed");
