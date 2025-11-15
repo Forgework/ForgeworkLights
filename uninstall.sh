@@ -96,12 +96,6 @@ if command -v python3 &> /dev/null; then
     done
 fi
 
-# Remove sudoers rule (if exists from old installation)
-if [ -f /etc/sudoers.d/omarchy-argb ]; then
-    sudo rm /etc/sudoers.d/omarchy-argb
-    echo -e "${GREEN}✓${NC} Removed old sudoers rule (no longer needed)"
-fi
-
 # Ask about config
 echo ""
 read -p "Remove configuration (~/.config/omarchy-argb)? [Y/n] " -n 1 -r
@@ -224,7 +218,6 @@ echo "  - /usr/local/bin/omarchy-argb-sync-themes"
 echo "  - /usr/local/bin/omarchy-argb-menu-floating"
 echo "  - /usr/local/libexec/fw_root_helper"
 echo "  - ~/.config/systemd/user/omarchy-argb.service"
-echo "  - /etc/sudoers.d/omarchy-argb (if present from old version)"
 echo ""
 echo "Backups created (if modified):"
 echo "  - ~/.config/waybar/config.*.uninstall-backup"

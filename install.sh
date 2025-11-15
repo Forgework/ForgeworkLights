@@ -235,8 +235,6 @@ setup_systemd() {
     fi
 }
 
-# Note: No sudoers setup needed - using dedicated root helper binary instead
-
 # Setup waybar integration
 setup_waybar() {
     echo ""

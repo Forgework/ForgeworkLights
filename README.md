@@ -150,7 +150,7 @@ systemctl --user enable --now omarchy-argb.service
 systemctl --user status omarchy-argb
 ```
 
-The daemon runs as your user via systemd user service. Hardware access is handled by a dedicated root helper binary (`/usr/local/libexec/fw_root_helper`) that is only executable by root. This provides secure hardware access without requiring broad sudo permissions or sudoers rules.
+The daemon runs as your user via systemd user service. Hardware access is handled by a dedicated setuid-root helper binary (`/usr/local/libexec/fw_root_helper`) that provides secure, validated access to framework_tool.
 
 ## How It Works
 
@@ -169,7 +169,6 @@ ForgeworkLights uses a secure two-tier architecture:
    - Only function: accept validated LED data and call `framework_tool`
    - Strict input validation (hex-encoded RGB data only)
    - No configuration, no file I/O, no user logic
-   - Replaces previous sudoers wildcard approach
 
 ### Process Flow
 

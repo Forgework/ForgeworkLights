@@ -107,24 +107,6 @@ ls -l /usr/local/bin/omarchy-argb
 systemctl --user status omarchy-argb
 ```
 
-### Advantages Over Previous Approach
-
-**Old Architecture (sudoers wildcard):**
-- Required: `your_username ALL=(ALL) NOPASSWD: /usr/bin/framework_tool --rgbkbd *`
-- Risks:
-  - Wildcard allows any arguments
-  - User could craft malicious framework_tool invocations
-  - Broad sudo permissions
-  - No input validation
-
-**New Architecture (dedicated root helper):**
-- No sudoers rules needed
-- Minimal attack surface (single-purpose binary)
-- Strict input validation
-- No shell interpretation
-- Root helper is auditable (< 200 lines)
-- Follows principle of least privilege
-
 ### Security Considerations
 
 **Attack Vectors Mitigated:**
@@ -152,15 +134,6 @@ Tests verify:
 - Hex decoding correctness
 - Rejection of injection attempts
 - Proper error codes
-
-### Migration from Old Version
-
-If upgrading from a version using sudoers:
-
-1. Install new version: `./install.sh`
-2. Old sudoers rule is automatically removed by uninstall/install scripts
-3. Restart service: `systemctl --user restart omarchy-argb`
-4. Verify: Check logs for "sending N LEDs via root helper" message
 
 ### References
 
