@@ -20,11 +20,30 @@ if systemctl --user is-active omarchy-argb.service &> /dev/null; then
     echo -e "${GREEN}✓${NC} Service stopped and disabled"
 fi
 
-# Turn off all 22 LEDs
-if command -v framework_tool &> /dev/null; then
-    echo "Turning off LEDs..."
-    sudo framework_tool --rgbkbd 0 $(printf '0x000000 %.0s' {1..22}) &> /dev/null || true
-    echo -e "${GREEN}✓${NC} All 22 LEDs turned off"
+# Turn off all 22 LEDs using root helper
+echo "Turning off LEDs..."
+if [ -f /usr/local/libexec/fw_root_helper ]; then
+    # 22 LEDs * 3 bytes = 66 bytes = 132 hex chars of zeros
+    if sudo /usr/local/libexec/fw_root_helper 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 2>/dev/null; then
+        echo -e "${GREEN}✓${NC} All 22 LEDs turned off (via root helper)"
+    else
+        echo -e "${YELLOW}!${NC} Root helper failed, trying framework_tool directly..."
+        # Fallback to direct framework_tool call
+        if command -v framework_tool &> /dev/null; then
+            sudo framework_tool --rgbkbd 0 $(printf '0x000000 %.0s' {1..22}) &> /dev/null || true
+            echo -e "${GREEN}✓${NC} All 22 LEDs turned off (via framework_tool)"
+        else
+            echo -e "${YELLOW}!${NC} Could not turn off LEDs (no framework_tool found)"
+        fi
+    fi
+else
+    echo -e "${YELLOW}!${NC} Root helper not found, trying framework_tool directly..."
+    if command -v framework_tool &> /dev/null; then
+        sudo framework_tool --rgbkbd 0 $(printf '0x000000 %.0s' {1..22}) &> /dev/null || true
+        echo -e "${GREEN}✓${NC} All 22 LEDs turned off (via framework_tool)"
+    else
+        echo -e "${YELLOW}!${NC} Could not turn off LEDs (framework_tool not found)"
+    fi
 fi
 
 # Remove systemd service
@@ -55,6 +74,12 @@ if [ -f /usr/local/bin/omarchy-argb-menu-floating ]; then
     echo -e "${GREEN}✓${NC} Removed /usr/local/bin/omarchy-argb-menu-floating"
 fi
 
+# Remove root helper
+if [ -f /usr/local/libexec/fw_root_helper ]; then
+    sudo rm /usr/local/libexec/fw_root_helper
+    echo -e "${GREEN}✓${NC} Removed /usr/local/libexec/fw_root_helper"
+fi
+
 # Remove TUI package module
 if command -v python3 &> /dev/null; then
     TUI_INSTALL_DIR=$(python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null)/tui
@@ -71,10 +96,10 @@ if command -v python3 &> /dev/null; then
     done
 fi
 
-# Remove sudoers rule
+# Remove sudoers rule (if exists from old installation)
 if [ -f /etc/sudoers.d/omarchy-argb ]; then
     sudo rm /etc/sudoers.d/omarchy-argb
-    echo -e "${GREEN}✓${NC} Removed sudoers rule"
+    echo -e "${GREEN}✓${NC} Removed old sudoers rule (no longer needed)"
 fi
 
 # Ask about config

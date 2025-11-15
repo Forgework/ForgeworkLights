@@ -168,6 +168,12 @@ install_binaries() {
     sudo install -Dm755 build/omarchy-argb /usr/local/bin/omarchy-argb
     echo -e "${GREEN}✓${NC} Installed omarchy-argb to /usr/local/bin"
     
+    # Install root helper with setuid-root (root:root 4755)
+    # The setuid bit allows user daemon to execute it with effective root privileges
+    sudo install -Dm755 -o root -g root build/fw_root_helper /usr/local/libexec/fw_root_helper
+    sudo chmod 4755 /usr/local/libexec/fw_root_helper
+    echo -e "${GREEN}✓${NC} Installed root helper to /usr/local/libexec/fw_root_helper (root:root 4755 setuid-root)"
+    
     # Install TUI control panel
     if [ -f scripts/options-tui.py ]; then
         sudo install -Dm755 scripts/options-tui.py /usr/local/bin/omarchy-argb-menu
@@ -231,18 +237,7 @@ setup_systemd() {
     fi
 }
 
-# Setup sudo access for framework_tool
-setup_sudo() {
-    echo ""
-    read -p "Configure passwordless sudo for framework_tool? [Y/n] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-        SUDOERS_FILE="/etc/sudoers.d/omarchy-argb"
-        echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/framework_tool --rgbkbd *" | sudo tee "$SUDOERS_FILE" > /dev/null
-        sudo chmod 0440 "$SUDOERS_FILE"
-        echo -e "${GREEN}✓${NC} Sudoers rule added"
-    fi
-}
+# Note: No sudoers setup needed - using dedicated root helper binary instead
 
 # Setup waybar integration
 setup_waybar() {
@@ -464,7 +459,6 @@ main() {
     install_optional_deps
     build_project
     install_binaries
-    setup_sudo
     setup_systemd
     setup_waybar
     setup_hyprland

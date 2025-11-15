@@ -5,7 +5,8 @@ After=dbus.service framework-system.service
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/omarchy-argb daemon
-ExecStop=/bin/bash -c 'framework_tool --rgbkbd 0 $(printf "0x000000 %.0s" {1..22})'
+# Turn off all 22 LEDs on stop (22 LEDs * 3 bytes = 66 bytes = 132 hex chars of zeros)
+ExecStop=/usr/local/libexec/fw_root_helper 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 Restart=on-failure
 
 [Install]

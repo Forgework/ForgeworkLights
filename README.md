@@ -32,11 +32,11 @@ cd ForgeworkLights
 The installer will:
 - ✓ Check for Framework Desktop hardware
 - ✓ Verify dependencies (framework_tool, cmake, etc.)
-- ✓ Build the daemon
-- ✓ Install binaries to `/usr/local/bin`
+- ✓ Build the daemon and root helper
+- ✓ Install user daemon to `/usr/local/bin`
+- ✓ Install root helper to `/usr/local/libexec` (root:root 4755 setuid-root)
 - ✓ Set up configuration
-- ✓ Configure passwordless sudo for framework_tool
-- ✓ Install systemd service (optional)
+- ✓ Install systemd user service (optional)
 - ✓ Set up waybar integration (optional)
 
 ### Uninstall
@@ -84,8 +84,14 @@ cd ForgeworkLights
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 
-# Install
+# Install daemon (runs as user)
 sudo install -Dm755 build/omarchy-argb /usr/local/bin/omarchy-argb
+
+# Install root helper (privileged hardware access only, setuid-root)
+sudo install -Dm755 -o root -g root build/fw_root_helper /usr/local/libexec/fw_root_helper
+sudo chmod 4755 /usr/local/libexec/fw_root_helper
+
+# Install TUI (optional)
 sudo install -Dm755 scripts/options-tui.py /usr/local/bin/omarchy-argb-menu
 ```
 
@@ -144,14 +150,28 @@ systemctl --user enable --now omarchy-argb.service
 systemctl --user status omarchy-argb
 ```
 
-The daemon requires `sudo` access to `framework_tool`. You may want to add a sudoers rule:
-
-```bash
-# /etc/sudoers.d/framework-argb
-your_username ALL=(ALL) NOPASSWD: /usr/bin/framework_tool --rgbkbd *
-```
+The daemon runs as your user via systemd user service. Hardware access is handled by a dedicated root helper binary (`/usr/local/libexec/fw_root_helper`) that is only executable by root. This provides secure hardware access without requiring broad sudo permissions or sudoers rules.
 
 ## How It Works
+
+### Architecture
+
+ForgeworkLights uses a secure two-tier architecture:
+
+1. **User Daemon** (`omarchy-argb daemon`)
+   - Runs as your user via systemd user service
+   - Monitors theme changes via inotify
+   - Calculates LED colors and animations
+   - Never requires root privileges
+
+2. **Root Helper** (`/usr/local/libexec/fw_root_helper`)
+   - Hardened setuid-root binary owned by root:root with 4755 permissions
+   - Only function: accept validated LED data and call `framework_tool`
+   - Strict input validation (hex-encoded RGB data only)
+   - No configuration, no file I/O, no user logic
+   - Replaces previous sudoers wildcard approach
+
+### Process Flow
 
 1. **Theme Detection**: Monitors `~/.config/omarchy/current/theme` symlink via inotify
 2. **Color Extraction**: Reads `btop.theme` from active theme directory:
@@ -160,7 +180,7 @@ your_username ALL=(ALL) NOPASSWD: /usr/bin/framework_tool --rgbkbd *
    - `theme[temp_end]` → Final gradient color
 3. **Gradient Generation**: Creates smooth 3-color gradient across 22 LEDs
 4. **Post-Processing**: Applies gamma correction, brightness scaling, and current limiting
-5. **LED Update**: Sends frame to hardware via `framework_tool --rgbkbd`
+5. **LED Update**: Daemon calls root helper with hex-encoded LED data → helper calls `framework_tool --rgbkbd`
 6. **Live Updates**: Automatically reloads when theme changes (< 150ms latency)
 
 ## Omarchy Theme Requirements
@@ -187,7 +207,7 @@ theme[temp_end]="#ECEFF4"
 - **Framework Desktop only**: Uses Desktop-specific `framework_tool --rgbkbd` command
 - **Omarchy Linux optimized**: Expects Omarchy theme directory structure
 - **btop.theme required**: Most themes include this; custom themes may need it added
-- **Sudo required**: LED control needs root access to hardware interface
+- **Root helper required**: LED control uses dedicated root helper binary for hardware access
 - **22 LEDs max**: Designed for JARGB1 header spec (with a .4A buffer) (can be adjusted in config)
 - **GRB color order**: WS2812B standard; other strips may need config change
 
@@ -210,8 +230,9 @@ theme[temp_end]="#ECEFF4"
 - Check logs: `journalctl --user -u omarchy-argb -f`
 
 **Permission errors:**
-- Add sudoers rule (see Usage section)
-- Or run daemon with sudo: `sudo SUDO_USER="$USER" omarchy-argb daemon`
+- Verify root helper is installed: `ls -l /usr/local/libexec/fw_root_helper`
+- Should show: `-rwsr-xr-x 1 root root` (setuid bit set)
+- Reinstall if needed: `./install.sh`
 
 ## License
 
