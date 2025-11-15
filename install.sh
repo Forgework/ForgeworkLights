@@ -203,8 +203,6 @@ install_binaries() {
     
     # Install sample config
     mkdir -p ~/.config/omarchy-argb
-    mkdir -p ~/.config/omarchy-argb
-
     if [ -f ~/.config/omarchy-argb/config.toml ]; then
         echo -e "${YELLOW}!${NC} Config already exists, skipping"
     else
@@ -444,11 +442,16 @@ test_installation() {
         return 1
     fi
     
-    # Test framework_tool access
-    if sudo -n framework_tool --help &> /dev/null; then
-        echo -e "${GREEN}✓${NC} framework_tool sudo access works"
+    # Test root helper
+    if [ -f /usr/local/libexec/fw_root_helper ]; then
+        local perms=$(stat -c '%a' /usr/local/libexec/fw_root_helper)
+        if [ "$perms" = "4755" ]; then
+            echo -e "${GREEN}✓${NC} root helper installed with correct permissions (4755)"
+        else
+            echo -e "${YELLOW}!${NC} root helper has incorrect permissions ($perms, should be 4755)"
+        fi
     else
-        echo -e "${YELLOW}!${NC} framework_tool requires password (configure sudo rule)"
+        echo -e "${RED}✗${NC} root helper not found at /usr/local/libexec/fw_root_helper"
     fi
 }
 

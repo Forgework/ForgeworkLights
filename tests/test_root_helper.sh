@@ -76,7 +76,7 @@ test_case "Invalid hex chars" 1 "GGHHII"
 # Test: Too small (less than 1 LED = 6 hex chars)
 test_case "Too small" 1 "0000"
 
-# Test: Too large (more than 100 LEDs = 600 hex chars)
+# Test: Too large (more than 22 LEDs, testing with 100 LEDs = 600 hex chars)
 LARGE_HEX=$(printf '%0600d' 0 | sed 's/0/FF/g')
 test_case "Too large" 1 "$LARGE_HEX"
 

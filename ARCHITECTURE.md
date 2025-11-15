@@ -45,7 +45,7 @@ ForgeworkLights uses a secure two-tier architecture to minimize privilege escala
 - `setuid(0)` and `setgid(0)` - Ensure root privileges
 - Strict input validation:
   - Hex format only
-  - Length checks (1-100 LEDs)
+  - Length checks (1-22 LEDs)
   - RGB triplet validation
   - No shell metacharacters
 - No configuration files
@@ -133,11 +133,11 @@ systemctl --user status omarchy-argb
 3. **Environment manipulation**: `clearenv()` clears all env vars
 4. **Argument injection**: Strict hex validation rejects metacharacters
 5. **Buffer overflow**: Fixed-size buffers with length checks
-6. **Integer overflow**: LED count limits (1-100)
+6. **Integer overflow**: LED count limits (1-22)
 
 **Remaining Trust Requirements:**
 - User must trust `framework_tool` (from Framework vendor)
-- Root helper must be installed correctly (root:root 700)
+- Root helper must be installed correctly (root:root 4755)
 - System must be configured correctly (no modified helper)
 
 ### Testing
