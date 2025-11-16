@@ -5,6 +5,7 @@ from textual.widgets import Static
 from textual.reactive import reactive
 from textual.message import Message
 import re
+from ..theme import THEME
 
 
 class ParameterSlider(Static):
@@ -64,14 +65,14 @@ class ParameterSlider(Static):
         
         # Choose color based on focus
         if self.is_focused:
-            color = "yellow"
+            color = THEME['hi_fg']
             bar_char = "━"
         else:
-            color = "cyan"
+            color = THEME['box_outline']
             bar_char = "─"
         
         # Create slider bar
-        bar = f"[{color}]{bar_char * filled}[/][dim]{bar_char * empty}[/dim]"
+        bar = f"[{color}]{bar_char * filled}[/][{THEME['inactive_fg']}]{bar_char * empty}[/]"
         
         return f"{label}{bar}{suffix}"
     

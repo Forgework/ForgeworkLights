@@ -1,0 +1,38 @@
+# ForgeworkLights TUI Theme Configuration
+# Based on Aether color palette
+
+# Main background color for the entire TUI
+main_bg = "#091819"
+
+# Main foreground/text color
+main_fg = "#ffffff"
+
+# Title color for panel headers and labels
+title = "#93c7d2"
+
+# Highlight color for focused elements and accents
+hi_fg = "#C3DDDF"
+
+# Background color for selected items
+selected_bg = "#345254"
+
+# Foreground color for selected items
+selected_fg = "#ffffff"
+
+# Color for inactive/disabled text and elements
+inactive_fg = "#345254"
+
+# Border and divider line color
+div_line = "#345254"
+
+# Box outline color for panels
+box_outline = "#79beae"
+
+# Button color (primary action color)
+button_fg = "#79beae"
+
+# Secondary background (for nested panels, inputs)
+secondary_bg = "#0d2324"
+
+# Hover/focus background color
+hover_bg = "#1a3536"

@@ -12,6 +12,7 @@ import sys
 from ..animations import ANIMATIONS, ANIMATIONS_LIST
 from ..constants import ANIMATION_FILE, ANIMATION_PARAMS_FILE
 from .parameter_slider import ParameterSlider
+from ..theme import THEME
 
 
 class AnimationsList(Vertical):
@@ -150,14 +151,14 @@ class AnimationsPanel(Static):
                 arrow = " "
             
             if idx == self.focused_index and list_has_focus:
-                # Match theme selection highlight: bold yellow on dark blue
-                line = f"[bold yellow on #3b4261] {arrow} {anim_name}[/]"
+                # Focused item - use theme highlight colors
+                line = f"[bold {THEME['hi_fg']} on {THEME['selected_bg']}] {arrow} {anim_name}[/]"
             elif anim_id == self.selected_animation:
-                # Selected but not focused
-                line = f" {arrow} {anim_name}"
+                # Selected but not focused - use theme title color
+                line = f"[{THEME['title']}] {arrow} {anim_name}[/]"
             else:
-                # Unselected
-                line = f" {arrow} {anim_name}"
+                # Unselected - use theme main foreground
+                line = f"[{THEME['main_fg']}] {arrow} {anim_name}[/]"
             
             lines.append(line)
         
@@ -178,15 +179,15 @@ class AnimationsPanel(Static):
         header = self.query_one("#animations-params-header", Static)
         
         if self.selected_animation not in ANIMATIONS:
-            header.update("[dim]No parameters[/]")
+            header.update(f"[{THEME['inactive_fg']}]No parameters[/]")
             return
         
         anim_data = ANIMATIONS[self.selected_animation]
         if not anim_data["params"]:
-            header.update(f"[bold]{anim_data['name']}[/]\n[dim]No adjustable parameters[/]")
+            header.update(f"[bold {THEME['title']}]{anim_data['name']}[/]\n[{THEME['inactive_fg']}]No adjustable parameters[/]")
             return
         
-        header.update(f"[bold]{anim_data['name']} Parameters:[/]\n")
+        header.update(f"[bold {THEME['title']}]{anim_data['name']} Parameters:[/]\n")
         
         # Mount sliders for each parameter
         params_container = self.query_one("#animations-right")
