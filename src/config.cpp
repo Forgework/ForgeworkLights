@@ -31,7 +31,6 @@ void Config::load_from_default() {
     };
     trim(k); trim(v);
     if (k == "led_count") led_count = std::stoi(v);
-    else if (k == "max_current_amps") max_current_amps = std::stod(v);
     else if (k == "max_brightness") max_brightness = std::stod(v);
     else if (k == "gamma_exponent") gamma_exponent = std::stod(v);
     else if (k == "color_order") color_order = (v=="RGB"? ColorOrder::RGB: ColorOrder::GRB);

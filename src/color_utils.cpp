@@ -1,8 +1,13 @@
 #include "color_utils.hpp"
 #include <cmath>
 #include <algorithm>
+#include <cstdio>
 
 namespace omarchy {
+
+// Fixed hardware limits for Framework JARGB1 header
+static constexpr float HARD_RAIL_LIMIT_AMPS = 2.4f;      // 5V rail max safe draw
+static constexpr float WS2812B_MAX_CURRENT_PER_LED = 0.060f;  // Full white worst-case
 
 Gamma::Gamma(double exponent) {
   // Color space conversion via gamma correction
@@ -18,8 +23,12 @@ Gamma::Gamma(double exponent) {
   }
 }
 
-void apply_gamma_brightness(std::vector<RGB>& leds, const Gamma& g, double brightness) {
+void apply_gamma_brightness_safety(std::vector<RGB>& leds, const Gamma& g, 
+                                   double brightness, bool safety_enabled) {
+  // 1. Clamp brightness strictly to [0.0, 1.0]
   brightness = std::clamp(brightness, 0.0, 1.0);
+  
+  // 2. Apply gamma correction and brightness scaling
   for (auto& c : leds) {
     uint8_t r = g.apply(c.r);
     uint8_t gch = g.apply(c.g);
@@ -28,28 +37,37 @@ void apply_gamma_brightness(std::vector<RGB>& leds, const Gamma& g, double brigh
     c.g = static_cast<uint8_t>(std::round(gch * brightness));
     c.b = static_cast<uint8_t>(std::round(b * brightness));
   }
-}
-
-void enforce_current_cap(std::vector<RGB>& leds, double max_amps) {
-  if (max_amps <= 0) return;
   
-  // Calculate total current draw
-  // Approx current per LED (A): (r+g+b)/255 * 0.06
-  double total = 0.0;
-  for (const auto& c : leds) total += ( (c.r + c.g + c.b) / 255.0 ) * 0.06;
+  // 3. Apply current limiting if safety mode enabled
+  if (!safety_enabled) return;
   
-  // Only limit if we're over the cap
-  if (total <= max_amps) return;
+  // Estimate current using WS2812B physical model
+  // Worst case: full white = 60mA per LED
+  // Current scales linearly with brightness since brightness is already applied
+  int led_count = static_cast<int>(leds.size());
+  float estimated_current = led_count * WS2812B_MAX_CURRENT_PER_LED * brightness;
   
-  // Calculate required scale factor
-  double scale = max_amps / total;
+  // Only limit if we exceed the rail capacity
+  if (estimated_current <= HARD_RAIL_LIMIT_AMPS) return;
   
-  // Apply scaling uniformly - this maintains color ratios and hue
-  // but reduces overall brightness/saturation proportionally
+  // Calculate uniform scale factor to bring current under limit
+  float scale = HARD_RAIL_LIMIT_AMPS / estimated_current;
+  
+  // Apply scaling uniformly to maintain color ratios
+  static bool logged_limiting = false;
+  if (!logged_limiting) {
+    std::fprintf(stderr, "[omarchy-argb] current limiting engaged: %.2fA → %.2fA (scale %.3f)\n",
+                 estimated_current, HARD_RAIL_LIMIT_AMPS, scale);
+    logged_limiting = true;
+  }
+  
   for (auto& c : leds) {
-    c.r = static_cast<uint8_t>(std::round(c.r * scale));
-    c.g = static_cast<uint8_t>(std::round(c.g * scale));
-    c.b = static_cast<uint8_t>(std::round(c.b * scale));
+    int r = static_cast<int>(std::round(c.r * scale));
+    int g = static_cast<int>(std::round(c.g * scale));
+    int b = static_cast<int>(std::round(c.b * scale));
+    c.r = static_cast<uint8_t>(std::clamp(r, 0, 255));
+    c.g = static_cast<uint8_t>(std::clamp(g, 0, 255));
+    c.b = static_cast<uint8_t>(std::clamp(b, 0, 255));
   }
 }
 

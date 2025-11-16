@@ -1,5 +1,4 @@
 led_count = 22
-max_current_amps = 2.0
 max_brightness = 0.7
 
 # Gamma correction for color space conversion

@@ -107,6 +107,44 @@ ls -l /usr/local/bin/omarchy-argb
 systemctl --user status omarchy-argb
 ```
 
+### Current Limiting and Safety
+
+**Hardware Constraints:**
+- Framework JARGB1 header: 5V rail with 2.4A maximum safe draw
+- WS2812B LEDs: 60mA worst-case current per LED at full white
+- 22 LEDs at full brightness × 60mA = 1.32A (within limits)
+- Safety mode prevents invalid configurations or future LED count changes from exceeding rail capacity
+
+**Physical Model:**
+```
+I_estimated = led_count × 0.060A × brightness_scalar
+```
+
+Where:
+- `led_count` = actual number of LEDs in the frame
+- `brightness_scalar` = brightness value in [0.0, 1.0] (always clamped)
+- 0.060A = WS2812B full-white maximum current per LED
+
+**Safety Mode (default: ON):**
+1. Brightness is clamped to [0.0, 1.0]
+2. Estimated current is calculated using physical model
+3. If `I_estimated > 2.4A`, uniform scale factor is applied to all RGB channels
+4. Scale factor: `scale = 2.4A / I_estimated`
+5. Final values are clamped to [0, 255]
+6. One-time log message indicates limiting engaged
+
+**Safety Mode OFF:**
+- Brightness clamping still occurs
+- No current limiting applied
+- Use only if you understand your hardware limits
+
+**CLI Flag:**
+```bash
+omarchy-argb daemon --safety=on    # Default
+omarchy-argb daemon --safety=off   # Disable limiting
+omarchy-argb once --safety=on      # Also works for test pattern
+```
+
 ### Security Considerations
 
 **Attack Vectors Mitigated:**

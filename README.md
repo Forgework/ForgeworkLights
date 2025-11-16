@@ -101,9 +101,8 @@ Create config file at `~/.config/omarchy-argb/config.toml`:
 
 ```toml
 led_count = 22
-max_current_amps = 2.0
 max_brightness = 0.7
-gamma_exponent = 1.0      # 1.0 = no correction, 0.45 = sRGB→linear
+gamma_exponent = 0.45     # 0.45 = sRGB→linear (recommended), 1.0 = no correction
 color_order = "GRB"       # WS2812B standard
 tool_path = "/usr/bin/framework_tool"
 ```
@@ -111,11 +110,26 @@ tool_path = "/usr/bin/framework_tool"
 ### Configuration Options
 
 - **led_count**: Number of LEDs in your strip (default: 22)
-- **max_current_amps**: Current limit in amps (default: 2.0A)
 - **max_brightness**: Brightness cap 0.0-1.0 (default: 0.7)
-- **gamma_exponent**: Color space correction (1.0 = passthrough)
+- **gamma_exponent**: Color space correction (0.45 = sRGB→linear, 1.0 = passthrough)
 - **color_order**: "GRB" for WS2812B, "RGB" for other strips
 - **tool_path**: Path to framework_tool binary
+
+### Current Limiting
+
+The Framework JARGB1 header provides a 5V rail with **2.4A maximum safe draw**. ForgeworkLights uses the WS2812B physical model (60mA per LED at full white) to automatically limit current:
+
+- **Safety mode (default)**: Enforces 2.4A rail limit by uniformly scaling LED brightness when needed
+- **Safety off**: Disables current limiting (use only if you know your hardware can handle it)
+
+Enable/disable with the `--safety` flag:
+```bash
+omarchy-argb daemon --safety=on   # Default: enable 2.4A limiting
+omarchy-argb daemon --safety=off  # Disable limiting
+omarchy-argb once --safety=on     # Also works with test command
+```
+
+Brightness is always clamped to [0.0, 1.0] regardless of safety mode.
 
 ## Usage
 
@@ -124,15 +138,14 @@ tool_path = "/usr/bin/framework_tool"
 ```bash
 # Test pattern (one-time)
 omarchy-argb once
+omarchy-argb once --safety=off     # Disable current limiting
 
 # Run daemon (foreground)
 omarchy-argb daemon
+omarchy-argb daemon --safety=on    # Explicit safety mode (default)
 
 # Adjust brightness (0.0-1.0)
 omarchy-argb brightness 0.5
-
-# Check color order
-omarchy-argb prob
 ```
 
 ### Systemd Service
@@ -178,7 +191,10 @@ ForgeworkLights uses a secure two-tier architecture:
    - `theme[temp_mid]` → Middle gradient color
    - `theme[temp_end]` → Final gradient color
 3. **Gradient Generation**: Creates smooth 3-color gradient across 22 LEDs
-4. **Post-Processing**: Applies gamma correction, brightness scaling, and current limiting
+4. **Post-Processing**: 
+   - Applies gamma correction (sRGB→linear color space)
+   - Scales by brightness (clamped to [0.0, 1.0])
+   - If safety mode enabled: limits current to 2.4A using WS2812B 60mA/LED model
 5. **LED Update**: Daemon calls root helper with hex-encoded LED data → helper calls `framework_tool --rgbkbd`
 6. **Live Updates**: Automatically reloads when theme changes (< 150ms latency)
 

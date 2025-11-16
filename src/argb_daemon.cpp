@@ -23,7 +23,8 @@
 
 namespace omarchy {
 
-ARGBDaemon::ARGBDaemon(const Config& cfg) : cfg_(cfg) {}
+ARGBDaemon::ARGBDaemon(const Config& cfg, bool safety_enabled) 
+  : cfg_(cfg), safety_enabled_(safety_enabled) {}
 
 int ARGBDaemon::run() {
   int fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
@@ -290,8 +291,7 @@ int ARGBDaemon::run() {
       }
     }
     double brightness = read_brightness();
-    apply_gamma_brightness(leds, gamma, brightness);
-    // enforce_current_cap(leds, cfg_.max_current_amps);  // Disabled - send raw colors
+    apply_gamma_brightness_safety(leds, gamma, brightness, safety_enabled_);
     return leds;
   };
 
@@ -419,7 +419,7 @@ int ARGBDaemon::run() {
   
   auto leds = animation->render_frame();
   double brightness = read_brightness();
-  apply_gamma_brightness(leds, gamma, brightness);
+  apply_gamma_brightness_safety(leds, gamma, brightness, safety_enabled_);
   tool.sendFrame(0, leds, cfg_.color_order);
   write_state(leds);
   if (!leds.empty()) {
@@ -511,7 +511,7 @@ int ARGBDaemon::run() {
     // Render next animation frame
     leds = animation->render_frame();
     double brightness = read_brightness();
-    apply_gamma_brightness(leds, gamma, brightness);
+    apply_gamma_brightness_safety(leds, gamma, brightness, safety_enabled_);
     
     // Send frame if changed
     if (leds.size() != prev_frame.size() || std::memcmp(leds.data(), prev_frame.data(), leds.size()*sizeof(RGB)) != 0) {

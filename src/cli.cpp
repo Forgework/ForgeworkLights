@@ -2,28 +2,50 @@
 #include "framework_tool.hpp"
 #include "argb_daemon.hpp"
 #include "config.hpp"
+#include "color_utils.hpp"
 #include <iostream>
 #include <vector>
- #include <filesystem>
- #include <fstream>
+#include <filesystem>
+#include <fstream>
+#include <cstring>
 
 namespace omarchy { namespace cli {
 
 static int usage() {
-  std::cout << "Usage: omarchy-argb <probe|once|daemon|brightness> [args]\n";
+  std::cout << "Usage: omarchy-argb <once|daemon|brightness> [--safety=on|off]\n";
+  std::cout << "  once                   - Send test pattern once\n";
+  std::cout << "  daemon                 - Run theme-syncing daemon\n";
+  std::cout << "  brightness <0.0-1.0>   - Set brightness\n";
+  std::cout << "\nOptions:\n";
+  std::cout << "  --safety=on|off        - Enable/disable 2.4A current limiting (default: on)\n";
   return 1;
+}
+
+static bool parse_safety_flag(int argc, char** argv) {
+  // Default is safety ON
+  bool safety_enabled = true;
+  for (int i = 2; i < argc; ++i) {
+    if (std::strncmp(argv[i], "--safety=", 9) == 0) {
+      const char* val = argv[i] + 9;
+      if (std::strcmp(val, "off") == 0 || std::strcmp(val, "OFF") == 0) {
+        safety_enabled = false;
+      } else if (std::strcmp(val, "on") == 0 || std::strcmp(val, "ON") == 0) {
+        safety_enabled = true;
+      }
+    }
+  }
+  return safety_enabled;
 }
 
 int run(int argc, char** argv) {
   if (argc < 2) return usage();
   std::string cmd = argv[1];
-  if (cmd == "probe") {
-    std::cout << "GRB" << std::endl;
-    return 0;
-  } else if (cmd == "once") {
+  if (cmd == "once") {
+    bool safety_enabled = parse_safety_flag(argc, argv);
     omarchy::Config cfg;
     cfg.load_from_default();
     omarchy::FrameworkTool tool(cfg.tool_path);
+    omarchy::Gamma gamma(cfg.gamma_exponent);
     std::vector<omarchy::RGB> leds;
     leds.reserve(cfg.led_count);
     for (int i = 0; i < cfg.led_count; ++i) {
@@ -33,12 +55,14 @@ int run(int argc, char** argv) {
       c.b = static_cast<uint8_t>(255 - c.r);
       leds.push_back(c);
     }
+    apply_gamma_brightness_safety(leds, gamma, cfg.max_brightness, safety_enabled);
     bool ok = tool.sendFrame(0, leds, cfg.color_order);
     return ok ? 0 : 2;
   } else if (cmd == "daemon") {
+    bool safety_enabled = parse_safety_flag(argc, argv);
     omarchy::Config cfg;
     cfg.load_from_default();
-    omarchy::ARGBDaemon d(cfg);
+    omarchy::ARGBDaemon d(cfg, safety_enabled);
     return d.run();
   } else if (cmd == "brightness") {
     if (argc < 3) return usage();
