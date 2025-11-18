@@ -117,17 +117,19 @@ class ParameterSlider(Static):
     
     def on_key(self, event) -> None:
         """Handle keyboard input for slider adjustment and navigation"""
-        # Value adjustment keys
-        if event.key in ("equals", "plus"):
-            self._adjust_value(1)
-            event.stop()
-            return
-        elif event.key in ("minus", "underscore"):
+        # Value adjustment with left/right arrows
+        if event.key == "left":
             self._adjust_value(-1)
+            event.prevent_default()
             event.stop()
             return
-        # Arrow key navigation between sliders
-        elif event.key in ("up", "down"):
+        elif event.key == "right":
+            self._adjust_value(1)
+            event.prevent_default()
+            event.stop()
+            return
+        # Up navigation - if at first slider, release focus for Shift+Tab
+        elif event.key == "up":
             # Find all sliders in parent container
             container = self.parent
             if container:
@@ -135,11 +137,26 @@ class ParameterSlider(Static):
                 if len(sliders) > 1:
                     try:
                         current_idx = sliders.index(self)
-                        if event.key == "up" and current_idx > 0:
+                        if current_idx > 0:
+                            # Move to previous slider
                             sliders[current_idx - 1].focus()
+                            event.prevent_default()
                             event.stop()
-                        elif event.key == "down" and current_idx < len(sliders) - 1:
+                        # else: at first slider, let default Tab handling work
+                    except ValueError:
+                        pass
+        # Down navigation between sliders
+        elif event.key == "down":
+            # Find all sliders in parent container
+            container = self.parent
+            if container:
+                sliders = list(container.query(ParameterSlider))
+                if len(sliders) > 1:
+                    try:
+                        current_idx = sliders.index(self)
+                        if current_idx < len(sliders) - 1:
                             sliders[current_idx + 1].focus()
+                            event.prevent_default()
                             event.stop()
                     except ValueError:
                         pass
@@ -153,18 +170,22 @@ class ParameterSlider(Static):
         old_value = self.value
         self.value = new_value
         
+        # Always refresh to show updated value
+        self.refresh()
+        
         # Only post message if value actually changed
         if old_value != new_value:
             self.post_message(self.ValueChanged(self.param_name, new_value))
-            self.refresh()  # Force visual update
     
     def on_focus(self) -> None:
         """Mark as focused"""
         self.is_focused = True
+        self.refresh()
     
     def on_blur(self) -> None:
         """Mark as unfocused"""
         self.is_focused = False
+        self.refresh()
     
     def set_value(self, value: float) -> None:
         """Set the slider value programmatically"""

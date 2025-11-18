@@ -126,6 +126,10 @@ class ColorSelector(Static):
             f"H:{h_deg}°",
             f"S:{s_pct}%",
             f"V:{v_pct}%",
+            "",
+            "[dim]Click or[/]",
+            "[dim]use ↑↓←→[/]",
+            "[dim]to select[/]",
         ]
         info_text = "\n".join(info_lines)
         

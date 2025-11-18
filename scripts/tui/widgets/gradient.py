@@ -2,6 +2,7 @@
 Gradient panel widget for ForgeworkLights TUI
 """
 import json
+import re
 from pathlib import Path
 from textual.containers import ScrollableContainer
 from textual.widgets import Static
@@ -104,9 +105,11 @@ class GradientPanel(ScrollableContainer):
             pass
         
         try:
-            # Add blank line at top (below Theme Selection border)
-            blank_padding = max(1, width - 2)  # -2 for borders
-            lines.append(f"[cyan]│{' ' * blank_padding}│[/]")
+            # Add instruction line at top (below Theme Selection border)
+            instruction = "[dim]↑↓ navigate, Enter apply, E edit, D delete[/]"
+            clean_instruction = re.sub(r'\[.*?\]', '', instruction)
+            padding = max(1, width - len(clean_instruction) - 2)  # -2 for borders
+            lines.append(f"[cyan]│{instruction}{' ' * padding}│[/]")
             
             # Add "Match Omarchy Theme" option at the top
             self._theme_list.append("__MATCH_OMARCHY__")

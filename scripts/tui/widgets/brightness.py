@@ -24,8 +24,9 @@ class BrightnessPanel(Static):
         
         # Calculate slider bar width
         label = f" {self.brightness:3d}%"
-        prefix = " "
-        slider_width = max(10, content_width - len(prefix) - len(label) - 1)
+        prefix = " [dim](click to adjust)[/] "
+        clean_prefix = re.sub(r'\[.*?\]', '', prefix)
+        slider_width = max(10, content_width - len(clean_prefix) - len(label) - 1)
         
         # Calculate filled portion
         filled = int((self.brightness / 100) * slider_width)
@@ -51,11 +52,12 @@ class BrightnessPanel(Static):
         
         # Calculate slider position
         label = f" {self.brightness:3d}%"
-        prefix = " "
-        slider_width = max(10, content_width - len(prefix) - len(label) - 1)
+        prefix = " [dim](click to adjust)[/] "
+        clean_prefix = re.sub(r'\[.*?\]', '', prefix)
+        slider_width = max(10, content_width - len(clean_prefix) - len(label) - 1)
         
         # Slider starts after: │ (1) + prefix
-        slider_start = 1 + len(prefix)
+        slider_start = 1 + len(clean_prefix)
         slider_end = slider_start + slider_width
         
         # Check if click is within slider bounds

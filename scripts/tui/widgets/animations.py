@@ -51,7 +51,7 @@ class ParametersContainer(VerticalScroll):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.can_focus = False  # Container doesn't take focus, sliders do
+        self.can_focus = False  # Let sliders be directly focusable via Tab
 
 
 class AnimationsPanel(Static):
@@ -139,7 +139,7 @@ class AnimationsPanel(Static):
     def _update_display(self) -> None:
         """Update the animations list and parameters display"""
         # Update left side - animations list
-        lines = []
+        lines = ["[dim]↑↓ navigate, Enter select[/]", ""]
         # Check if left container is focused
         left_container = self.query_one("#animations-left", AnimationsList)
         list_has_focus = left_container.has_focus
@@ -187,7 +187,7 @@ class AnimationsPanel(Static):
             header.update(f"[bold {THEME['title']}]{anim_data['name']}[/]\n[{THEME['inactive_fg']}]No adjustable parameters[/]")
             return
         
-        header.update(f"[bold {THEME['title']}]{anim_data['name']} Parameters:[/]\n")
+        header.update(f"[bold {THEME['title']}]{anim_data['name']} Parameters:[/]\n[dim]Tab to focus, ↑↓ navigate, ←→ adjust[/]\n")
         
         # Mount sliders for each parameter
         params_container = self.query_one("#animations-right")
@@ -214,9 +214,10 @@ class AnimationsPanel(Static):
             self.animation_params[self.selected_animation] = {}
         self.animation_params[self.selected_animation][message.param_name] = message.value
         
-        # Save to file and apply
+        # Save to file and send animation with new params (but don't rebuild display)
         self._save_params()
-        self._apply_animation()
+        params = self.animation_params.get(self.selected_animation, {})
+        self.post_message(self.AnimationSelected(self.selected_animation, params))
         message.stop()  # Prevent bubbling
     
     def on_animations_panel_list_navigated(self, message: ListNavigated) -> None:
