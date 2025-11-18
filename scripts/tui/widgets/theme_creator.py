@@ -9,9 +9,9 @@ from textual.message import Message
 from textual import events
 from pathlib import Path
 import json
-import subprocess
 import sys
 from .color_selector import ColorSelector
+from ..utils.colors import generate_gradient
 
 
 class ThemeButton(Static):
@@ -226,94 +226,43 @@ class ThemeCreator(Container):
     
     def action_save_theme(self) -> None:
         """Save the custom theme"""
-        print(f"\n*** action_save_theme() CALLED ***", file=sys.stderr)
-        print(f"*** Editing mode: {self.editing_theme_key is not None} ***", file=sys.stderr)
-        print(f"*** Theme name: '{self.theme_name}' ***", file=sys.stderr)
-        print(f"*** Color1: {self.color1} ***", file=sys.stderr)
-        print(f"*** Color2: {self.color2} ***", file=sys.stderr)
-        print(f"*** Color3: {self.color3} ***", file=sys.stderr)
-        
         theme_input = self.query_one("#theme-name-input", Input)
         preview = self.query_one("#gradient-preview", Static)
         
         if not self.theme_name:
-            print("*** ERROR: No theme name! ***", file=sys.stderr)
             theme_input.placeholder = "⚠ Please enter a theme name!"
             preview.update("⚠ Please enter a theme name!")
             return
         
         # Determine if we're saving or updating
         action_verb = "Updating" if self.editing_theme_key else "Saving"
-        print(f"*** Updating UI to show '{action_verb}...' ***", file=sys.stderr)
         theme_input.placeholder = f"{action_verb}..."
         preview.update(f"{action_verb}...")
         
         # Validate colors
-        print("*** Validating colors ***", file=sys.stderr)
         if not all([self._is_valid_hex(c) for c in [self.color1, self.color2, self.color3]]):
-            print("*** ERROR: Invalid color format ***", file=sys.stderr)
             preview.update("✗ Invalid color format")
             return
-        print("*** Colors are valid ***", file=sys.stderr)
         
-        # Call generate-colors.py to expand the gradient
+        # Generate the 22-color gradient
         try:
-            # Try multiple possible locations for the script
-            possible_paths = [
-                Path(__file__).parent.parent.parent / "generate-colors.py",  # Development
-                Path("/home/tmo/Work/ForgeWorkLights/scripts/generate-colors.py"),  # Absolute
-                Path("/usr/local/bin/omarchy-argb-generate-colors"),  # Installed
-            ]
-            
-            script_path = None
-            for p in possible_paths:
-                if p.exists():
-                    script_path = p
-                    break
-            
-            if not script_path:
-                raise FileNotFoundError(f"Could not find generate-colors.py in any of: {possible_paths}")
-            
-            print(f"\n*** Calling generate-colors.py ***", file=sys.stderr)
-            print(f"*** Script path: {script_path} ***", file=sys.stderr)
-            print(f"*** Script exists: {script_path.exists()} ***", file=sys.stderr)
-            print(f"*** Themes DB path: {self.themes_db_path} ***", file=sys.stderr)
-            print(f"*** Command: python3 {script_path} {self.color1} {self.color2} {self.color3} ***", file=sys.stderr)
-            result = subprocess.run(
-                ["python3", str(script_path), self.color1, self.color2, self.color3],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            
-            # Parse the 22 colors from output
-            print(f"*** Script output: {result.stdout[:200]} ***", file=sys.stderr)
-            colors_22 = [line.strip() for line in result.stdout.strip().split('\n') if line.strip().startswith('#')]
-            print(f"*** Got {len(colors_22)} colors ***", file=sys.stderr)
+            colors_22 = generate_gradient([self.color1, self.color2, self.color3], 22)
             
             if len(colors_22) != 22:
-                print(f"*** ERROR: Expected 22 colors, got {len(colors_22)} ***", file=sys.stderr)
                 preview.update(f"✗ Got {len(colors_22)} colors, expected 22")
                 return
             
             # Load existing themes
-            print(f"*** Loading existing themes from {self.themes_db_path} ***", file=sys.stderr)
             if self.themes_db_path.exists():
                 db_data = json.loads(self.themes_db_path.read_text())
-                print(f"*** Loaded {len(db_data.get('themes', {}))} existing themes ***", file=sys.stderr)
             else:
-                print("*** Creating new themes.json ***", file=sys.stderr)
                 db_data = {"themes": {}}
             
             # Add or update theme
             if self.editing_theme_key:
-                # Editing existing theme - use the original key
                 theme_key = self.editing_theme_key
-                print(f"*** Updating existing theme with key: {theme_key} ***", file=sys.stderr)
             else:
-                # Creating new theme - generate key from name
                 theme_key = self.theme_name.lower().replace(' ', '-')
-                print(f"*** Adding new theme with key: {theme_key} ***", file=sys.stderr)
             
             db_data["themes"][theme_key] = {
                 "name": self.theme_name.title(),
@@ -321,9 +270,7 @@ class ThemeCreator(Container):
             }
             
             # Save back to file
-            print(f"*** Writing to {self.themes_db_path} ***", file=sys.stderr)
             self.themes_db_path.write_text(json.dumps(db_data, indent=2))
-            print(f"*** SUCCESS! File written ***", file=sys.stderr)
             
             # Show success message
             action_verb = "Updated" if self.editing_theme_key else "Saved"
@@ -334,25 +281,11 @@ class ThemeCreator(Container):
             self.post_message(self.ThemeCreated(theme_key))
             
             # Clear inputs and exit editing mode
-            print("*** Clearing inputs ***", file=sys.stderr)
             self.action_clear()
             
-        except subprocess.CalledProcessError as e:
-            print(f"\n*** SUBPROCESS ERROR ***", file=sys.stderr)
-            print(f"*** Return code: {e.returncode} ***", file=sys.stderr)
-            print(f"*** Stdout: {e.stdout} ***", file=sys.stderr)
-            print(f"*** Stderr: {e.stderr} ***", file=sys.stderr)
-            theme_input.placeholder = "✗ Error generating colors"
-            preview.update(f"✗ Error: {e.stderr[:50]}")
         except Exception as e:
-            print(f"\n*** EXCEPTION: {type(e).__name__} ***", file=sys.stderr)
-            print(f"*** Message: {str(e)} ***", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
             theme_input.placeholder = f"✗ Error: {str(e)}"
             preview.update(f"✗ Error: {str(e)[:50]}")
-        
-        print(f"\n*** action_save_theme() FINISHED ***\n", file=sys.stderr)
     
     def action_clear(self) -> None:
         """Clear all inputs"""

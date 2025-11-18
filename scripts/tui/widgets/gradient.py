@@ -494,16 +494,11 @@ class GradientPanel(ScrollableContainer):
     
     def _create_gradient_preview(self, colors: list, width: int) -> str:
         """Create a visual gradient using colored blocks (matches daemon interpolation)"""
+        from ..utils.colors import hex_to_rgb, rgb_to_hex
+        
         blocks = []
         
-        # Parse hex colors to RGB
-        def hex_to_rgb(hex_color):
-            hex_color = hex_color.lstrip('#')
-            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-        
-        def rgb_to_hex(r, g, b):
-            return f"#{int(r):02x}{int(g):02x}{int(b):02x}"
-        
+        # Use shared color conversion utilities
         rgb_colors = [hex_to_rgb(c) for c in colors]
         num_colors = len(rgb_colors)
         

@@ -87,10 +87,4 @@ ANIMATIONS = {
     }
 }
 
-# Legacy list format for backward compatibility
-ANIMATIONS_LIST = [
-    (anim_id, f"{data['name']} - {data['description']}")
-    for anim_id, data in ANIMATIONS.items()
-]
-
-__all__ = ['ANIMATIONS', 'ANIMATIONS_LIST']
+__all__ = ['ANIMATIONS']

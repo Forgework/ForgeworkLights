@@ -9,7 +9,7 @@ from textual.message import Message
 from textual import events
 import json
 import sys
-from ..animations import ANIMATIONS, ANIMATIONS_LIST
+from ..animations import ANIMATIONS
 from ..constants import ANIMATION_FILE, ANIMATION_PARAMS_FILE
 from .parameter_slider import ParameterSlider
 from ..theme import THEME
@@ -81,8 +81,8 @@ class AnimationsPanel(Static):
     selected_animation = reactive("static")
     focused_index = reactive(0)
     
-    # Available animations
-    ANIMATIONS_LIST = ANIMATIONS_LIST
+    # Available animations - derived from ANIMATIONS dict
+    ANIMATIONS_LIST = [(anim_id, info["name"]) for anim_id, info in ANIMATIONS.items()]
     animation_params = {}
     sliders = []  # Track mounted sliders
     

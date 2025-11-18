@@ -358,47 +358,12 @@ class ForgeworkLightsTUI(App):
         print("\n=== Theme sync requested ===", file=sys.stderr)
         
         try:
-            # Run sync-themes.py as a subprocess to avoid import issues
-            import subprocess
-            from pathlib import Path
+            # Import and run sync_themes directly
+            sys.path.insert(0, str(Path(__file__).parent.parent))
+            from sync_themes import sync_themes
             
-            # Find the sync script - try multiple possible locations
-            possible_paths = [
-                Path(__file__).parent.parent / "sync-themes.py",  # scripts/sync-themes.py
-                Path("/home/tmo/Work/ForgeWorkLights/scripts/sync-themes.py"),  # Absolute path
-            ]
-            
-            sync_script = None
-            for path in possible_paths:
-                print(f"Checking for sync script at: {path}", file=sys.stderr)
-                if path.exists():
-                    sync_script = path
-                    print(f"Found sync script at: {sync_script}", file=sys.stderr)
-                    break
-            
-            if not sync_script:
-                print(f"ERROR: Sync script not found. Tried: {possible_paths}", file=sys.stderr)
-                return
-            
-            # Run the sync script
-            print(f"Running: python3 {sync_script} --verbose", file=sys.stderr)
-            result = subprocess.run(
-                ["python3", str(sync_script), "--verbose"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            
-            print(f"Sync return code: {result.returncode}", file=sys.stderr)
-            if result.stdout:
-                print(f"Sync stdout:\n{result.stdout}", file=sys.stderr)
-            if result.stderr:
-                print(f"Sync stderr:\n{result.stderr}", file=sys.stderr)
-            
-            if result.returncode == 0:
-                print("Sync completed successfully", file=sys.stderr)
-            else:
-                print(f"Sync failed with code {result.returncode}", file=sys.stderr)
+            changes = sync_themes(verbose=True)
+            print(f"Sync completed: {changes} themes added/updated", file=sys.stderr)
             
             # Refresh the gradient panel to show new themes
             print("Refreshing theme list...", file=sys.stderr)
@@ -408,8 +373,6 @@ class ForgeworkLightsTUI(App):
             self.refresh_status()
             print("Theme list refreshed", file=sys.stderr)
             
-        except subprocess.TimeoutExpired:
-            print("ERROR: Sync timed out after 10 seconds", file=sys.stderr)
         except Exception as e:
             print(f"ERROR: Exception during sync: {e}", file=sys.stderr)
             traceback.print_exc()
@@ -511,13 +474,13 @@ class ForgeworkLightsTUI(App):
                     if name == "theme" or "theme" in name:
                         print(f"Detected Omarchy theme change: {name}", file=sys.stderr)
                         self.call_from_thread(self._on_omarchy_theme_changed)
-                    elif name == "led-theme":
+                    elif name == LED_THEME_FILE.name:
                         print(f"Detected led-theme change", file=sys.stderr)
                         self.call_from_thread(self.refresh_status)
-                    elif name == "brightness":
+                    elif name == BRIGHTNESS_FILE.name:
                         print(f"Detected brightness change", file=sys.stderr)
                         self.call_from_thread(self._on_brightness_changed)
-                    elif name == "themes.json":
+                    elif name == THEMES_DB_PATH.name:
                         print(f"Detected themes.json change", file=sys.stderr)
                         self.call_from_thread(self._on_themes_db_changed)
                 

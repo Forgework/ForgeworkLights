@@ -4,6 +4,7 @@ TUI Theme loader - loads colors from tui-theme.toml
 import tomllib
 from pathlib import Path
 from typing import Dict
+from .constants import CONFIG_DIR, SHARE_DIR
 
 # Default fallback colors
 DEFAULT_COLORS = {
@@ -24,8 +25,8 @@ DEFAULT_COLORS = {
 def load_theme() -> Dict[str, str]:
     """Load theme colors from config file or use defaults"""
     config_paths = [
-        Path.home() / ".config" / "omarchy-argb" / "tui-theme.toml",
-        Path("/usr/local/share/omarchy-argb/tui-theme.toml"),
+        CONFIG_DIR / "tui-theme.toml",
+        SHARE_DIR / "tui-theme.toml",
         Path(__file__).parent.parent.parent / "config" / "tui-theme.toml",
     ]
     
