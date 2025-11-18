@@ -158,15 +158,15 @@ class ColorSelector(Static):
     
     def on_click(self, event: events.Click) -> None:
         """Handle mouse clicks on the color grid"""
-        # Calculate position relative to grid
-        # Note: This is approximate since we don't have exact widget positioning
-        # In practice, keyboard navigation works better for TUI
-        grid = self.query_one("#color-grid", Static)
+        # Only respond to clicks within the color grid bounds
+        # Grid is self.grid_width chars wide, info panel is on the right
+        if event.x >= self.grid_width or event.y >= self.grid_height:
+            # Click is outside the grid (in info panel or beyond)
+            return
         
-        # Estimate cursor position based on click
-        # This is simplified - exact positioning would need widget region info
-        self.cursor_x = min(1.0, max(0.0, event.x / self.grid_width))
-        self.cursor_y = min(1.0, max(0.0, event.y / self.grid_height))
+        # Calculate position relative to grid
+        self.cursor_x = min(1.0, max(0.0, event.x / (self.grid_width - 1)))
+        self.cursor_y = min(1.0, max(0.0, event.y / (self.grid_height - 1)))
         
         self.selected_color = self._calculate_color_at_cursor()
         self._update_display()
@@ -191,7 +191,7 @@ class ColorSelector(Static):
             self.cursor_y = min(1.0, self.cursor_y + step_y)
             event.prevent_default()
         elif event.key == "enter":
-            # Select current color
+            # Select current color (explicit selection)
             self.selected_color = self._calculate_color_at_cursor()
             self._emit_color_selected()
             event.prevent_default()
@@ -202,6 +202,8 @@ class ColorSelector(Static):
         # Update color at new cursor position
         self.selected_color = self._calculate_color_at_cursor()
         self._update_display()
+        # Emit color change for real-time updates (especially for keyboard navigation)
+        self._emit_color_selected()
     
     def _emit_color_selected(self) -> None:
         """Emit color selection message"""
@@ -223,18 +225,22 @@ class ColorSelector(Static):
             h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
             self.cursor_x = h
             
-            # Map HSV to cursor_y position
-            # Need to find where on the gradient this color would be
-            if v <= 0.5:
-                # Dark colors: map V [0,0.5] to cursor_y [0,0.25]
-                self.cursor_y = v / 2
-            elif s >= 0.5:
-                # Saturated colors: map V [0.5,1] and S [0.5,1] to cursor_y around middle
-                # Position based on value, centered around 0.5
-                self.cursor_y = v / 2
+            # Reverse the gradient calculation to find cursor_y position
+            # Forward logic:
+            #   ny <= 0.5: S=1, V=ny*2 (black to saturated)
+            #   ny > 0.5:  S=2-ny*2, V=1 (saturated to white)
+            # Reverse:
+            if v < 0.99:  # Not at full brightness
+                # Top half: black to saturated (S≈1, V varies)
+                # ny = V / 2
+                self.cursor_y = v / 2.0
+            elif s < 0.99:  # Full brightness but not fully saturated
+                # Bottom half: saturated to white (V=1, S varies)
+                # S = 2 - ny*2, so ny = (2 - S) / 2 = 1 - S/2
+                self.cursor_y = 1.0 - (s / 2.0)
             else:
-                # Light/white colors: map S [0,0.5] to cursor_y [0.75,1]
-                self.cursor_y = 1.0 - (s / 2)
+                # Fully saturated and full brightness - middle of gradient
+                self.cursor_y = 0.5
             
             self.selected_color = (r, g, b)
             self._update_display()

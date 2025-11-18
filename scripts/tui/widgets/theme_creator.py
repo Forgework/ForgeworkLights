@@ -406,6 +406,24 @@ class ThemeCreator(Container):
         self.query_one("#color3-input", Input).value = self.color3
         self._update_preview()
     
+    def on_key(self, event: events.Key) -> None:
+        """Handle key presses - intercept arrow keys when hex inputs are focused"""
+        try:
+            focused = self.app.focused
+            if focused and hasattr(focused, 'id'):
+                # Check if a color input has focus
+                if focused.id in ["color1-input", "color2-input", "color3-input"]:
+                    # Arrow keys should control the color selector
+                    if event.key in ["up", "down", "left", "right"]:
+                        picker = self.query_one("#theme-color-picker", ColorSelector)
+                        # Forward the key event to the color selector
+                        picker.on_key(event)
+                        # Prevent the input from handling the arrow key
+                        event.prevent_default()
+                        event.stop()
+        except Exception as e:
+            print(f"Error handling key: {e}", file=sys.stderr)
+    
     def on_descendant_focus(self, event: events.DescendantFocus) -> None:
         """Handle when any descendant widget gains focus (mouse or keyboard)"""
         # When a color input gains focus, update the picker to show that color

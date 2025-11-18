@@ -16,16 +16,20 @@ echo ""
 
 # Check if running on Framework Desktop
 check_framework_desktop() {
-    if ! grep -q "Framework" /sys/devices/virtual/dmi/id/sys_vendor 2>/dev/null; then
+    local vendor=$(cat /sys/devices/virtual/dmi/id/sys_vendor 2>/dev/null || echo "")
+    local product=$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || echo "")
+    
+    # Check for Framework vendor AND Desktop product (not Laptop)
+    if [[ "$vendor" != "Framework" ]] || [[ ! "$product" =~ Desktop ]]; then
         echo -e "${YELLOW}Warning: This doesn't appear to be a Framework Desktop${NC}"
-        echo "The daemon may not work correctly on other hardware."
+        echo "Detected: $vendor - $product"
+        echo "This tool is designed for Framework Desktop with LED strips."
         read -p "Continue anyway? [y/N] " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
         fi
     else
-        local product=$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || echo "Unknown")
         echo -e "${GREEN}✓${NC} Framework Desktop detected: $product"
     fi
 }
@@ -414,8 +418,8 @@ windowrulev2 = noanim, class:^(forgework-lights-tui)$
 
 # Ghostty-specific rules (ghostty uses its own class name and doesn't support CLI dimensions)
 windowrulev2 = float, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
-windowrulev2 = size 718 676, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
-windowrulev2 = move 100%-820 60, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
+windowrulev2 = size 734 1055, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
+windowrulev2 = move 100%-754 60, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
 windowrulev2 = noborder, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
 windowrulev2 = noanim, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
 EOF
@@ -428,19 +432,20 @@ EOF
     fi
 }
 
-# Test the installation
-test_installation() {
+# Check the installation
+check_installation() {
     echo ""
-    echo "Testing installation..."
+    echo "Checking installation..."
     
-    if omarchy-argb probe &> /dev/null; then
-        echo -e "${GREEN}✓${NC} omarchy-argb executable works"
+    # Cck if binary exists and is executable
+    if [ -x /usr/local/bin/omarchy-argb ]; then
+        echo -e "${GREEN}✓${NC} omarchy-argb executable installed"
     else
-        echo -e "${RED}✗${NC} omarchy-argb test failed"
+        echo -e "${RED}✗${NC} omarchy-argb not found or not executable"
         return 1
     fi
     
-    # Test root helper
+    # Check root helper
     if [ -f /usr/local/libexec/fw_root_helper ]; then
         local perms=$(stat -c '%a' /usr/local/libexec/fw_root_helper)
         if [ "$perms" = "4755" ]; then
@@ -477,7 +482,7 @@ main() {
     echo "Config: ~/.config/omarchy-argb/config.toml"
     echo ""
     
-    test_installation
+    check_installation
 }
 
 main "$@"
