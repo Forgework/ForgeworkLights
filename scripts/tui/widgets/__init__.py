@@ -1,7 +1,7 @@
 """
 ForgeworkLights TUI widgets
 """
-from .borders import BorderTop, BorderMiddle, CollapsibleBorderMiddle, Spacer, Filler, ControlFooterBorder
+from .borders import BorderTop, BorderMiddle, Spacer, Filler, ControlFooterBorder
 from .status import StatusPanel
 from .gradient import GradientPanel
 from .brightness import BrightnessPanel
@@ -15,7 +15,6 @@ from .countdown_bar import CountdownBar
 __all__ = [
     "BorderTop",
     "BorderMiddle",
-    "CollapsibleBorderMiddle",
     "Spacer",
     "Filler",
     "ControlFooterBorder",

@@ -25,7 +25,7 @@ Screen {{
     scrollbar-size: 1 1;
 }}
 
-StatusPanel, BorderTop, BorderMiddle, CollapsibleBorderMiddle, Spacer {{
+StatusPanel, BorderTop, BorderMiddle, Spacer {{
     width: 100%;
     height: auto;
 }}

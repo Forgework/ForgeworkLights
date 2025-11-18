@@ -38,39 +38,6 @@ class BorderMiddle(Static):
             return f"[cyan]├{'─' * (width - 2)}┤[/]"
 
 
-class CollapsibleBorderMiddle(Static):
-    """Middle border separator that can be clicked to collapse/expand a section"""
-    
-    class Toggled(Message):
-        """Message sent when the border is clicked"""
-        def __init__(self, section_id: str, is_expanded: bool):
-            super().__init__()
-            self.section_id = section_id
-            self.is_expanded = is_expanded
-    
-    def __init__(self, border_title: str = "", section_id: str = "", is_expanded: bool = True, **kwargs):
-        super().__init__(**kwargs)
-        self.border_title = border_title
-        self.section_id = section_id
-        self.is_expanded = is_expanded
-        self.can_focus = False
-    
-    def render(self) -> str:
-        width = max(60, self.size.width if self.size.width > 0 else 70)
-        # Arrow indicator: ▼ when expanded, ▶ when collapsed
-        arrow = "▼" if self.is_expanded else "▶"
-        title = f" {arrow} {self.border_title} "
-        left_pad = 2
-        right_pad = max(0, width - len(title) - left_pad - 4)
-        return f"[cyan]├{'─' * left_pad}┤[bold]{title}[/]├{'─' * right_pad}┤[/]"
-    
-    def on_click(self, event) -> None:
-        """Toggle expanded state when clicked"""
-        self.is_expanded = not self.is_expanded
-        self.refresh()
-        self.post_message(self.Toggled(self.section_id, self.is_expanded))
-
-
 class Spacer(Static):
     """Empty line with borders for vertical spacing"""
     def render(self) -> str:
