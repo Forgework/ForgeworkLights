@@ -77,7 +77,7 @@ class ControlFooterBorder(Static):
         super().__init__()
         self.hovered_item = None
         self.focused_index = 0
-        self.controls = ["quit", "bright_down", "bright_up", "logs"]
+        self.controls = ["quit", "logs"]
         self.can_focus = True
     
     def render(self) -> str:
@@ -93,27 +93,19 @@ class ControlFooterBorder(Static):
         if self.hovered_item == "quit" or focused_control == "quit":
             quit = "[bold yellow][Ctrl+Q] Quit[/]"
         
-        down = "💡↓"
-        if self.hovered_item == "bright_down" or focused_control == "bright_down":
-            down = "[bold yellow]💡↓[/]"
-        
-        up = "💡↑"
-        if self.hovered_item == "bright_up" or focused_control == "bright_up":
-            up = "[bold yellow]💡↑[/]"
-        
         logs = "[L] Logs"
         if self.hovered_item == "logs" or focused_control == "logs":
             logs = "[bold yellow][L] Logs[/]"
         
-        controls = f" {quit}  {down}  {up}  {logs} "
+        controls = f" {quit}  {logs} "
         
         # Calculate exact visible width:
-        # space(1) + [Ctrl+Q] Quit(13) + spaces(2) + 💡↓(2) + spaces(2) + 💡↑(2) + spaces(2) + [L] Logs(8) + space(1)
-        # Total visible: 1 + 13 + 2 + 2 + 2 + 2 + 2 + 8 + 1 = 33
+        # space(1) + [Ctrl+Q] Quit(13) + spaces(2) + [L] Logs(8) + space(1)
+        # Total visible: 1 + 13 + 2 + 8 + 1 = 25
         
-        # Total: ╰(1) + left_pad + ┤(1) + space(1) + [Ctrl+Q] Quit(13) + spaces(2) + 💡↓(2) + spaces(2) + 💡↑(2) + spaces(2) + [L] Logs(8) + space(1) + ├(1) + ─(1) + ╯(1)
-        # = 1 + left_pad + 1 + 1 + 13 + 2 + 2 + 2 + 2 + 2 + 8 + 1 + 1 + 1 + 1 = left_pad + 38 = width
-        left_pad = max(1, width - 37)
+        # Total: ╰(1) + left_pad + ┤(1) + space(1) + [Ctrl+Q] Quit(13) + spaces(2) + [L] Logs(8) + space(1) + ├(1) + ─(1) + ╯(1)
+        # = 1 + left_pad + 1 + 1 + 13 + 2 + 8 + 1 + 1 + 1 + 1 = left_pad + 30 = width
+        left_pad = max(1, width - 29)
         
         return f"[cyan]╰{'─' * left_pad}┤{controls}├─╯[/]"
     
@@ -122,10 +114,10 @@ class ControlFooterBorder(Static):
         width = self.size.width if self.size.width > 0 else 70
         
         # Calculate control positions from the left edge
-        # Layout: ╰───...───┤ [Ctrl+Q] Quit  💡↓  💡↑  [L] Logs ├─╯
+        # Layout: ╰───...───┤ [Ctrl+Q] Quit  [L] Logs ├─╯
         #         0         left_pad+1 (┤) +2 (space) +3 (start of text)
         
-        left_pad = max(1, width - 37)
+        left_pad = max(1, width - 29)
         # Position after: ╰ (1) + dashes (left_pad) + ┤ (1) + space (1)
         controls_start = left_pad + 3
         
@@ -133,24 +125,12 @@ class ControlFooterBorder(Static):
         quit_start = controls_start
         quit_end = quit_start + 13
         
-        # 2 spaces, then 💡↓ = 2 display chars (but emoji is 1 column in most terminals)
-        down_start = quit_end + 2
-        down_end = down_start + 2
-        
-        # 2 spaces, then 💡↑ = 2 display chars
-        up_start = down_end + 2
-        up_end = up_start + 2
-        
         # 2 spaces, then [L] Logs = 8 chars
-        logs_start = up_end + 2
+        logs_start = quit_end + 2
         logs_end = logs_start + 8
         
         if quit_start <= x < quit_end:
             self.post_message(self.ControlClicked("quit"))
-        elif down_start <= x < down_end:
-            self.post_message(self.ControlClicked("bright_down"))
-        elif up_start <= x < up_end:
-            self.post_message(self.ControlClicked("bright_up"))
         elif logs_start <= x < logs_end:
             self.post_message(self.ControlClicked("logs"))
     
@@ -159,25 +139,17 @@ class ControlFooterBorder(Static):
         width = self.size.width if self.size.width > 0 else 70
         
         # Use same position calculation as click
-        left_pad = max(1, width - 37)
+        left_pad = max(1, width - 29)
         controls_start = left_pad + 3
         
         quit_start = controls_start
         quit_end = quit_start + 13
-        down_start = quit_end + 2
-        down_end = down_start + 2
-        up_start = down_end + 2
-        up_end = up_start + 2
-        logs_start = up_end + 2
+        logs_start = quit_end + 2
         logs_end = logs_start + 8
         
         old = self.hovered_item
         if quit_start <= x < quit_end:
             self.hovered_item = "quit"
-        elif down_start <= x < down_end:
-            self.hovered_item = "bright_down"
-        elif up_start <= x < up_end:
-            self.hovered_item = "bright_up"
         elif logs_start <= x < logs_end:
             self.hovered_item = "logs"
         else:

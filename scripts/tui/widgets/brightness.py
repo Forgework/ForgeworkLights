@@ -16,7 +16,16 @@ class BrightnessPanel(Static):
             super().__init__()
             self.value = value
     
+    BINDINGS = [
+        ("left", "brightness_down", "Decrease brightness"),
+        ("right", "brightness_up", "Increase brightness"),
+    ]
+    
     brightness = reactive(100)
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.can_focus = True
     
     def render(self) -> str:
         width = max(60, self.size.width if self.size.width > 0 else 70)
@@ -24,7 +33,7 @@ class BrightnessPanel(Static):
         
         # Calculate slider bar width
         label = f" {self.brightness:3d}%"
-        prefix = " [dim](click to adjust)[/] "
+        prefix = " [dim]←→ adjust[/] "
         clean_prefix = re.sub(r'\[.*?\]', '', prefix)
         slider_width = max(10, content_width - len(clean_prefix) - len(label) - 1)
         
@@ -52,7 +61,7 @@ class BrightnessPanel(Static):
         
         # Calculate slider position
         label = f" {self.brightness:3d}%"
-        prefix = " [dim](click to adjust)[/] "
+        prefix = " [dim]←→ adjust[/] "
         clean_prefix = re.sub(r'\[.*?\]', '', prefix)
         slider_width = max(10, content_width - len(clean_prefix) - len(label) - 1)
         
@@ -69,3 +78,13 @@ class BrightnessPanel(Static):
             
             # Post message to parent app
             self.post_message(self.BrightnessChanged(new_brightness))
+    
+    def action_brightness_up(self) -> None:
+        """Increase brightness by 5%"""
+        new_brightness = min(100, self.brightness + 5)
+        self.post_message(self.BrightnessChanged(new_brightness))
+    
+    def action_brightness_down(self) -> None:
+        """Decrease brightness by 5%"""
+        new_brightness = max(0, self.brightness - 5)
+        self.post_message(self.BrightnessChanged(new_brightness))

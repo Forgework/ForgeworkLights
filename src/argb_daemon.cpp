@@ -438,6 +438,7 @@ int ARGBDaemon::run() {
   for(;;){
     bool animation_changed = false;
     bool theme_changed = false;
+    bool omarchy_theme_changed = false;
 
     ssize_t n = read(fd, buf, sizeof(buf));
     if (n > 0) {
@@ -447,6 +448,7 @@ int ARGBDaemon::run() {
         if (ev->wd == wd_current) {
           if (ev->len > 0 && std::string(ev->name) == "theme") {
             log("event: theme symlink changed");
+            omarchy_theme_changed = true;
             theme_changed = true;
           }
         } else if (ev->wd == wd_palette_dir) {
@@ -490,6 +492,18 @@ int ARGBDaemon::run() {
           }
         }
         i += sizeof(struct inotify_event) + ev->len;
+      }
+    }
+
+    // If Omarchy theme changed and we're in "match" mode, sync themes and reload database
+    if (omarchy_theme_changed && read_led_theme_preference() == "match") {
+      log("Omarchy theme changed in match mode - syncing themes from Omarchy directory");
+      int sync_rc = std::system("python3 /usr/local/bin/omarchy-argb-sync-themes 2>/dev/null");
+      if (sync_rc == 0) {
+        log("theme sync completed");
+        reload_theme_database();
+      } else {
+        log("theme sync failed or no changes");
       }
     }
 

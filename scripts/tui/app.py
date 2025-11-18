@@ -182,10 +182,6 @@ class ForgeworkLightsTUI(App):
         """Handle footer control clicks"""
         if message.action_id == "quit":
             self.exit()
-        elif message.action_id == "bright_down":
-            self.action_brightness_down()
-        elif message.action_id == "bright_up":
-            self.action_brightness_up()
         elif message.action_id == "logs":
             self.action_view_logs()
     
@@ -243,31 +239,6 @@ class ForgeworkLightsTUI(App):
             print(f"Failed to apply theme: {e}", file=sys.stderr)
             traceback.print_exc()
     
-    def action_brightness_up(self) -> None:
-        """Increase brightness by 5%"""
-        try:
-            self._brightness_adjusting = True
-            panel = self.query_one("#brightness-panel", BrightnessPanel)
-            new_brightness = min(100, panel.brightness + 5)
-            panel.brightness = new_brightness
-            self._apply_brightness(new_brightness)
-            panel.refresh()
-            self._brightness_adjusting = False
-        except Exception:
-            self._brightness_adjusting = False
-    
-    def action_brightness_down(self) -> None:
-        """Decrease brightness by 5%"""
-        try:
-            self._brightness_adjusting = True
-            panel = self.query_one("#brightness-panel", BrightnessPanel)
-            new_brightness = max(0, panel.brightness - 5)
-            panel.brightness = new_brightness
-            self._apply_brightness(new_brightness)
-            panel.refresh()
-            self._brightness_adjusting = False
-        except Exception:
-            self._brightness_adjusting = False
     
     def _apply_brightness(self, brightness: int) -> None:
         """Apply brightness to daemon and save to file"""

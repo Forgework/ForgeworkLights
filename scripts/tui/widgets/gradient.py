@@ -309,9 +309,6 @@ class GradientPanel(ScrollableContainer):
         # Clear pending deletion when navigating away
         if self.selected_index < len(self._theme_list) and self._theme_list[self.selected_index] != self.pending_delete_key:
             self.pending_delete_key = None
-        
-        # Scroll to keep selected item visible
-        self._scroll_to_selected()
     
     def action_select_next(self) -> None:
         """Select next element (cycles through name, edit, delete for each theme, then Sync button)"""
@@ -357,16 +354,6 @@ class GradientPanel(ScrollableContainer):
         # Clear pending deletion when navigating away
         if self.selected_index < len(self._theme_list) and self._theme_list[self.selected_index] != self.pending_delete_key:
             self.pending_delete_key = None
-        
-        # Scroll to keep selected item visible
-        self._scroll_to_selected()
-    
-    def _scroll_to_selected(self) -> None:
-        """Scroll to keep the selected item visible"""
-        # Account for header lines: instruction (1 line) + Match Omarchy (1) + blank (1) = 3 lines offset
-        # Each theme takes 1 line, Sync button is at the end
-        line_number = 3 + self.selected_index
-        self.scroll_to(y=line_number, animate=False)
     
     def action_apply_theme(self) -> None:
         """Apply action based on currently selected element"""
@@ -466,16 +453,12 @@ class GradientPanel(ScrollableContainer):
                 self.selected_index = theme_idx
                 self.action_apply_theme()
         else:
-            # Beyond theme list - could be Sync button
-            # Sync button is at y = 3 + len(themes) + 1 (blank line) = len(themes) + 4
-            sync_button_y = len(self._theme_list) + 4
-            if y == sync_button_y:
-                # Clicked on Sync button (right side of screen)
-                # Sync button text "[Sync]" is 6 chars at the right edge
-                if x >= width - 8:  # Right-aligned button area
-                    self.selected_index = len(self._theme_list)
-                    self.selected_element = "name"
-                    self.action_apply_theme()
+            # Sync button: last theme ends at y = len(_theme_list) + 1, then blank line, then Sync
+            sync_button_y = len(self._theme_list) + 3
+            if y == sync_button_y and x >= width - 6:
+                self.selected_index = len(self._theme_list)
+                self.selected_element = "name"
+                self.action_apply_theme()
     
     def _handle_edit_click(self, theme_idx: int) -> None:
         """Handle edit button click for a theme"""
