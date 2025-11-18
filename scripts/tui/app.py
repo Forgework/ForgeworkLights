@@ -78,7 +78,7 @@ class ForgeworkLightsTUI(App):
                 yield ThemeCreator(THEMES_DB_PATH, id="theme-creator")
                 yield BorderMiddle("Animations")
                 yield AnimationsPanel(id="animations-panel")
-                yield Spacer(id="animations-end-spacer")
+                yield Filler()
             
             # Bottom section (docked)
             with Container(id="bottom-section"):

@@ -94,6 +94,14 @@ if command -v python3 &> /dev/null; then
             echo -e "${GREEN}✓${NC} Removed old TUI package from $py_path"
         fi
     done
+    
+    # Clean up Python cache directories
+    SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null)
+    if [ -n "$SITE_PACKAGES" ]; then
+        # Remove tui-related __pycache__ directories
+        find "$SITE_PACKAGES" -type d -name "__pycache__" -path "*/tui/*" -exec sudo rm -rf {} + 2>/dev/null || true
+        echo -e "${GREEN}✓${NC} Cleaned Python cache"
+    fi
 fi
 
 # Ask about config

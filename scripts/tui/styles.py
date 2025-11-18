@@ -30,10 +30,9 @@ StatusPanel, BorderTop, BorderMiddle, Spacer {{
     height: auto;
 }}
 
-#animations-end-spacer {{
+Filler {{
+    width: 100%;
     height: 1fr;
-    border-left: solid {THEME['box_outline']};
-    border-right: solid {THEME['box_outline']};
 }}
 
 BrightnessPanel {{

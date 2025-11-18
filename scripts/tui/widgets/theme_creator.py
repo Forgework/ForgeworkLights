@@ -73,6 +73,13 @@ class ThemeCreator(Container):
     def on_mount(self) -> None:
         """Initialize preview and color picker"""
         try:
+            # Clean up any leftover preview theme from previous session
+            if self.themes_db_path.exists():
+                db_data = json.loads(self.themes_db_path.read_text())
+                if "__preview__" in db_data.get("themes", {}):
+                    del db_data["themes"]["__preview__"]
+                    self.themes_db_path.write_text(json.dumps(db_data, indent=2))
+            
             self._update_preview()
             # Initialize color picker with first color
             picker = self.query_one("#theme-color-picker", ColorSelector)
@@ -310,6 +317,13 @@ class ThemeCreator(Container):
         try:
             countdown = self.query_one("#preview-countdown", CountdownBar)
             preview = self.query_one("#gradient-preview", Static)
+            
+            # Remove the temporary preview theme from database
+            if self.themes_db_path.exists():
+                db_data = json.loads(self.themes_db_path.read_text())
+                if "__preview__" in db_data.get("themes", {}):
+                    del db_data["themes"]["__preview__"]
+                    self.themes_db_path.write_text(json.dumps(db_data, indent=2))
             
             # Restore original theme
             LED_THEME_FILE.write_text(f"{self.saved_theme}\n")

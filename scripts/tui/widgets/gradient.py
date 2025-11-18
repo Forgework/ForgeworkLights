@@ -11,6 +11,7 @@ from textual.app import ComposeResult
 from textual.message import Message
 
 from ..constants import THEMES_DB_PATH, THEME_SYMLINK, LED_THEME_FILE
+from ..theme import THEME
 
 
 class GradientPanel(ScrollableContainer):
@@ -52,6 +53,8 @@ class GradientPanel(ScrollableContainer):
         ("up", "select_previous", "Previous theme"),
         ("down", "select_next", "Next theme"),
         ("enter", "apply_theme", "Apply theme"),
+        ("e", "edit_theme", "Edit theme"),
+        ("d", "delete_theme", "Delete theme"),
     ]
     
     def __init__(self, **kwargs):
@@ -109,7 +112,7 @@ class GradientPanel(ScrollableContainer):
             instruction = "[dim]↑↓ navigate, Enter apply, E edit, D delete[/]"
             clean_instruction = re.sub(r'\[.*?\]', '', instruction)
             padding = max(1, width - len(clean_instruction) - 2)  # -2 for borders
-            lines.append(f"[cyan]│{instruction}{' ' * padding}│[/]")
+            lines.append(f"[{THEME['box_outline']}]│{instruction}{' ' * padding}│[/]")
             
             # Add "Match Omarchy Theme" option at the top
             self._theme_list.append("__MATCH_OMARCHY__")
@@ -124,15 +127,15 @@ class GradientPanel(ScrollableContainer):
             
             # Highlight if selected AND focused
             if is_selected and show_highlight:
-                line = f"│[bold yellow on #3b4261] {marker} {display_name}{' ' * padding_needed}[/]│"
+                line = f"│[bold {THEME['hi_fg']} on {THEME['selected_bg']}] {marker} {display_name}{' ' * padding_needed}[/]│"
             else:
-                line = f"│ {marker} {display_name}{' ' * padding_needed}│"
+                line = f"│ [{THEME['main_fg']}]{marker} {display_name}{' ' * padding_needed}[/]│"
             
-            lines.append(f"[cyan]{line}[/]")
+            lines.append(f"[{THEME['box_outline']}]{line}[/]")
             
             # Add blank line after Match Omarchy
             blank_padding = max(1, width - 2)  # -2 for borders
-            lines.append(f"[cyan]│{' ' * blank_padding}│[/]")
+            lines.append(f"[{THEME['box_outline']}]│{' ' * blank_padding}│[/]")
             
             # Load and display themes from database
             if THEMES_DB_PATH.exists():
@@ -182,32 +185,32 @@ class GradientPanel(ScrollableContainer):
                             if is_selected and show_highlight:
                                 if self.selected_element == "name":
                                     # Highlight theme name only
-                                    line = f"│ {marker} [bold yellow on #3b4261]{name_padded}[/] {gradient} {hex_str}{' ' * padding_needed}{icons}{' ' * trailing_spaces}│"
+                                    line = f"│ {marker} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]{name_padded}[/] {gradient} {hex_str}{' ' * padding_needed}{icons}{' ' * trailing_spaces}│"
                                 elif self.selected_element == "edit":
                                     # Highlight edit icon with background (2 chars wide)
                                     if self.pending_delete_key == theme_key:
                                         # " ✎ ✓ " with edit highlighted (check is 2 chars wide)
-                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} [bold yellow on #3b4261]✎ [/]✓ │"
+                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✎ [/]✓ │"
                                     else:
                                         # " ✎ 🗑 " with edit highlighted
-                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} [bold yellow on #3b4261]✎ [/]🗑 │"
+                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✎ [/]🗑 │"
                                 elif self.selected_element == "delete":
                                     # Highlight delete icon with background (2 chars wide)
                                     if self.pending_delete_key == theme_key:
                                         # " ✎ ✓ " with checkmark highlighted (check is 2 chars wide)
-                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} ✎ [bold yellow on #3b4261]✓[/] │"
+                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} ✎ [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✓[/] │"
                                     else:
                                         # " ✎ 🗑 " with trash highlighted (edit in normal color)
-                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} ✎ [bold yellow on #3b4261]🗑[/] │"
+                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} ✎ [bold {THEME['hi_fg']} on {THEME['selected_bg']}]🗑[/] │"
                             else:
-                                line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed}{icons}{' ' * trailing_spaces}│"
+                                line = f"│ [{THEME['main_fg']}]{marker} {name_padded}[/] {gradient} {hex_str}{' ' * padding_needed}{icons}{' ' * trailing_spaces}│"
                             
-                            lines.append(f"[cyan]{line}[/]")
+                            lines.append(f"[{THEME['box_outline']}]{line}[/]")
                     
                     # Add blank line after theme list
                     if self._theme_list:  # Only if themes were added
                         blank_padding = max(1, width - 2)  # -2 for borders
-                        lines.append(f"[cyan]│{' ' * blank_padding}│[/]")
+                        lines.append(f"[{THEME['box_outline']}]│{' ' * blank_padding}│[/]")
                     
                     # Add Sync button in bottom right
                     sync_text = "Sync"
@@ -219,23 +222,23 @@ class GradientPanel(ScrollableContainer):
                                        self.selected_element == "name")
                     
                     if is_sync_selected and show_highlight:
-                        # Highlighted - yellow background
-                        sync_line = f"[cyan]│{' ' * sync_padding}[bold yellow on #3b4261]{sync_text}[/]│[/]"
+                        # Highlighted - use theme colors
+                        sync_line = f"[{THEME['box_outline']}]│{' ' * sync_padding}[bold {THEME['hi_fg']} on {THEME['selected_bg']}]{sync_text}[/]│[/]"
                     else:
-                        # Normal - cyan text to match app theme
-                        sync_line = f"[cyan]│{' ' * sync_padding}{sync_text}│[/]"
+                        # Normal - use theme colors
+                        sync_line = f"[{THEME['box_outline']}]│{' ' * sync_padding}[{THEME['main_fg']}]{sync_text}[/]│[/]"
                     
                     lines.append(sync_line)
             
             if len(lines) <= 1:
                 empty_text = "No themes found"
                 padding = max(0, width - len(empty_text) - 3)
-                lines.append(f"[cyan]│ {empty_text}{' ' * padding}│[/]")
+                lines.append(f"[{THEME['box_outline']}]│ [{THEME['inactive_fg']}]{empty_text}[/]{' ' * padding}│[/]")
                 
         except Exception as e:
             error_text = f"Error loading themes: {e}"
             padding = max(0, width - len(error_text) - 3)
-            lines.append(f"[cyan]│ {error_text}{' ' * padding}│[/]")
+            lines.append(f"[{THEME['box_outline']}]│ [{THEME['inactive_fg']}]{error_text}[/]{' ' * padding}│[/]")
         
         self._content.update("\n".join(lines))
     
@@ -306,6 +309,9 @@ class GradientPanel(ScrollableContainer):
         # Clear pending deletion when navigating away
         if self.selected_index < len(self._theme_list) and self._theme_list[self.selected_index] != self.pending_delete_key:
             self.pending_delete_key = None
+        
+        # Scroll to keep selected item visible
+        self._scroll_to_selected()
     
     def action_select_next(self) -> None:
         """Select next element (cycles through name, edit, delete for each theme, then Sync button)"""
@@ -351,6 +357,16 @@ class GradientPanel(ScrollableContainer):
         # Clear pending deletion when navigating away
         if self.selected_index < len(self._theme_list) and self._theme_list[self.selected_index] != self.pending_delete_key:
             self.pending_delete_key = None
+        
+        # Scroll to keep selected item visible
+        self._scroll_to_selected()
+    
+    def _scroll_to_selected(self) -> None:
+        """Scroll to keep the selected item visible"""
+        # Account for header lines: instruction (1 line) + Match Omarchy (1) + blank (1) = 3 lines offset
+        # Each theme takes 1 line, Sync button is at the end
+        line_number = 3 + self.selected_index
+        self.scroll_to(y=line_number, animate=False)
     
     def action_apply_theme(self) -> None:
         """Apply action based on currently selected element"""
@@ -382,6 +398,28 @@ class GradientPanel(ScrollableContainer):
         elif self.selected_element == "delete":
             # Delete the theme (or confirm deletion)
             self._handle_delete_click(theme_idx)
+    
+    def action_edit_theme(self) -> None:
+        """Edit the currently selected theme"""
+        if not self._theme_list or self.selected_index >= len(self._theme_list):
+            return
+        
+        theme_key = self._theme_list[self.selected_index]
+        if theme_key == "__MATCH_OMARCHY__":
+            return  # Can't edit Match Omarchy option
+        
+        self._handle_edit_click(self.selected_index)
+    
+    def action_delete_theme(self) -> None:
+        """Delete the currently selected theme"""
+        if not self._theme_list or self.selected_index >= len(self._theme_list):
+            return
+        
+        theme_key = self._theme_list[self.selected_index]
+        if theme_key == "__MATCH_OMARCHY__":
+            return  # Can't delete Match Omarchy option
+        
+        self._handle_delete_click(self.selected_index)
     
     def on_click(self, event) -> None:
         """Handle clicks on theme items"""

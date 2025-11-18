@@ -46,14 +46,39 @@ check_dependencies() {
         echo -e "${RED}✗${NC} cmake not found (required for building)"
         missing=1
     else
-        echo -e "${GREEN}✓${NC} cmake found"
+        # Check CMake version (>= 3.16 required)
+        cmake_version=$(cmake --version | head -n1 | grep -oP '\d+\.\d+' | head -n1)
+        cmake_major=$(echo "$cmake_version" | cut -d. -f1)
+        cmake_minor=$(echo "$cmake_version" | cut -d. -f2)
+        if [ "$cmake_major" -lt 3 ] || ([ "$cmake_major" -eq 3 ] && [ "$cmake_minor" -lt 16 ]); then
+            echo -e "${YELLOW}!${NC} cmake $cmake_version found (>= 3.16 recommended)"
+        else
+            echo -e "${GREEN}✓${NC} cmake $cmake_version found"
+        fi
     fi
     
     if ! command -v g++ &> /dev/null && ! command -v clang++ &> /dev/null; then
         echo -e "${RED}✗${NC} C++ compiler not found (g++ or clang++)"
         missing=1
     else
-        echo -e "${GREEN}✓${NC} C++ compiler found"
+        # Check compiler version (C++20 support needed)
+        if command -v g++ &> /dev/null; then
+            gcc_version=$(g++ --version | head -n1 | grep -oP '\d+\.\d+' | head -n1)
+            gcc_major=$(echo "$gcc_version" | cut -d. -f1)
+            if [ "$gcc_major" -lt 11 ]; then
+                echo -e "${YELLOW}!${NC} g++ $gcc_version found (>= 11.0 recommended for C++20)"
+            else
+                echo -e "${GREEN}✓${NC} g++ $gcc_version found"
+            fi
+        elif command -v clang++ &> /dev/null; then
+            clang_version=$(clang++ --version | head -n1 | grep -oP '\d+\.\d+' | head -n1)
+            clang_major=$(echo "$clang_version" | cut -d. -f1)
+            if [ "$clang_major" -lt 14 ]; then
+                echo -e "${YELLOW}!${NC} clang++ $clang_version found (>= 14.0 recommended for C++20)"
+            else
+                echo -e "${GREEN}✓${NC} clang++ $clang_version found"
+            fi
+        fi
     fi
     
     # Framework tool (critical)
@@ -85,13 +110,23 @@ check_dependencies() {
         echo -e "${YELLOW}!${NC} python3 not found (optional, for TUI control panel)"
         echo "  Install with: sudo pacman -S python"
     else
-        echo -e "${GREEN}✓${NC} python3 found"
+        # Check Python version (>= 3.11 required for tomllib)
+        python_version=$(python3 --version | grep -oP '\d+\.\d+' | head -n1)
+        python_major=$(echo "$python_version" | cut -d. -f1)
+        python_minor=$(echo "$python_version" | cut -d. -f2)
+        if [ "$python_major" -lt 3 ] || ([ "$python_major" -eq 3 ] && [ "$python_minor" -lt 11 ]); then
+            echo -e "${YELLOW}!${NC} python $python_version found (>= 3.11 required for TUI)"
+        else
+            echo -e "${GREEN}✓${NC} python $python_version found"
+        fi
+        
         # Check for textual
         if ! python3 -c "import textual" &> /dev/null; then
             echo -e "${YELLOW}!${NC} textual not found (optional, for TUI control panel)"
-            echo "  Install with: pip install --user textual"
+            echo "  Install with: pip install --user -r requirements.txt"
         else
-            echo -e "${GREEN}✓${NC} textual found"
+            textual_version=$(python3 -c "import textual; print(textual.__version__)" 2>/dev/null || echo "unknown")
+            echo -e "${GREEN}✓${NC} textual $textual_version found"
         fi
     fi
     
@@ -140,14 +175,16 @@ install_optional_deps() {
         echo -e "${GREEN}✓${NC} All optional dependencies already installed"
     fi
     
-    # Install textual via pip if python is available
+    # Install Python dependencies from requirements.txt
     if command -v python3 &> /dev/null; then
         if ! python3 -c "import textual" &> /dev/null; then
-            echo "Installing textual via pip..."
+            echo "Installing Python dependencies from requirements.txt..."
             # Use --break-system-packages with --user (safe on Arch Linux)
-            python3 -m pip install --user --break-system-packages textual 2>/dev/null || \
-                python3 -m pip install --user textual
-            echo -e "${GREEN}✓${NC} Textual installed"
+            python3 -m pip install --user --break-system-packages -r requirements.txt 2>/dev/null || \
+                python3 -m pip install --user -r requirements.txt
+            echo -e "${GREEN}✓${NC} Python dependencies installed"
+        else
+            echo -e "${GREEN}✓${NC} Python dependencies already satisfied"
         fi
     fi
 }
@@ -352,14 +389,13 @@ PYEOF
             # Add CSS styling
             if [ -f ~/.config/waybar/style.css ]; then
                 if ! grep -q "custom-forgework-lights" ~/.config/waybar/style.css; then
-                    cat >> ~/.config/waybar/style.css << 'EOF'
-
-/* ForgeworkLights module styling */
-#custom-forgework-lights {
-  padding: 0 10px;
-}
-EOF
-                    echo -e "${GREEN}✓${NC} Added CSS styling"
+                    # Append CSS from waybar/forgework-lights.css (single source of truth)
+                    if [ -f "waybar/forgework-lights.css" ]; then
+                        cat waybar/forgework-lights.css >> ~/.config/waybar/style.css
+                        echo -e "${GREEN}✓${NC} Added CSS styling from waybar/forgework-lights.css"
+                    else
+                        echo -e "${YELLOW}!${NC} waybar/forgework-lights.css not found, skipping CSS"
+                    fi
                 fi
             fi
             
@@ -405,27 +441,19 @@ setup_hyprland() {
         cp "$hypr_config" "${hypr_config}.backup"
         echo "Created backup: ${hypr_config}.backup"
         
-        # Append window rules
-        cat >> "$hypr_config" << 'EOF'
-
-# ForgeworkLights TUI Window Rules
-windowrulev2 = float, class:^(forgework-lights-tui)$
-# windowrulev2 = size 800 1000, class:^(forgework-lights-tui)$ # Commented out to auto-size
-windowrulev2 = move 100%-820 60, class:^(forgework-lights-tui)$ # Position from right edge
-windowrulev2 = animation slide, class:^(forgework-lights-tui)$
-windowrulev2 = noborder, class:^(forgework-lights-tui)$
-windowrulev2 = noanim, class:^(forgework-lights-tui)$
-
-# Ghostty-specific rules (ghostty uses its own class name and doesn't support CLI dimensions)
-windowrulev2 = float, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
-windowrulev2 = size 734 1055, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
-windowrulev2 = move 100%-754 60, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
-windowrulev2 = noborder, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
-windowrulev2 = noanim, class:^(com.mitchellh.ghostty)$,title:^(ForgeworkLights)$
-EOF
+        # Append window rules from hyprland-rules.conf (single source of truth)
+        echo "" >> "$hypr_config"
+        if [ -f "hyprland-rules.conf" ]; then
+            cat hyprland-rules.conf >> "$hypr_config"
+        elif [ -f "${BASH_SOURCE%/*}/hyprland-rules.conf" ]; then
+            cat "${BASH_SOURCE%/*}/hyprland-rules.conf" >> "$hypr_config"
+        else
+            echo -e "${RED}✗${NC} hyprland-rules.conf not found"
+            return 1
+        fi
         
-        echo -e "${GREEN}✓${NC} Added Hyprland window rules"
-        echo -e "${GREEN}✓${NC} TUI will now open as floating window in upper right"
+        echo -e "${GREEN}✓${NC} Added Hyprland window rules from hyprland-rules.conf"
+        echo -e "${GREEN}✓${NC} TUI will now open as floating window in top right corner"
         
         # Reload Hyprland config
         hyprctl reload &>/dev/null && echo -e "${GREEN}✓${NC} Reloaded Hyprland config" || true
