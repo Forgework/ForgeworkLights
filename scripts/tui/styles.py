@@ -115,15 +115,28 @@ ThemeCreator {{
 ThemeCreator #theme-creator-main {{
     width: 100%;
     height: auto;
-    layout: horizontal;
+    layout: vertical;
     align: left top;
 }}
 
 ThemeCreator #theme-controls {{
-    width: 55%;
-    min-width: 48;
+    width: 100%;
+    height: auto;
+    layout: horizontal;
+    margin-bottom: 1;
+}}
+
+ThemeCreator #theme-info-column {{
+    width: 50%;
     height: auto;
     layout: vertical;
+}}
+
+ThemeCreator #theme-inputs-column {{
+    width: 50%;
+    height: auto;
+    layout: vertical;
+    padding-left: 1;
 }}
 
 ThemeCreator .compact-row {{
@@ -174,6 +187,14 @@ ThemeCreator Horizontal#button-row {{
     align: center middle;
 }}
 
+ThemeCreator CountdownBar {{
+    width: 100%;
+    height: 1;
+    margin-top: 0;
+    text-align: center;
+    content-align: center middle;
+}}
+
 ThemeButton {{
     color: {THEME['button_fg']};
     width: auto;
@@ -199,11 +220,11 @@ ThemeCreator Input.selected {{
 
 /* Color Selector Styling */
 ThemeCreator ColorSelector {{
-    width: 45%;
-    height: 14;
-    max-height: 14;
+    width: 100%;
+    height: 22;
+    max-height: 22;
     padding: 0;
-    margin: 0 0 0 1;
+    margin: 0;
     background: {THEME['secondary_bg']};
     border: solid {THEME['div_line']};
     overflow: hidden;
@@ -214,16 +235,16 @@ ThemeCreator ColorSelector:focus {{
 }}
 
 ThemeCreator ColorSelector Horizontal {{
-    height: 14;
-    max-height: 14;
+    height: 22;
+    max-height: 22;
     overflow: hidden;
     layout: horizontal;
 }}
 
 ThemeCreator ColorSelector #color-grid {{
     width: auto;
-    height: 12;
-    max-height: 12;
+    height: 20;
+    max-height: 20;
     margin: 0;
     overflow: hidden;
 }}
@@ -231,7 +252,7 @@ ThemeCreator ColorSelector #color-grid {{
 ThemeCreator ColorSelector #color-info {{
     width: auto;
     min-width: 10;
-    height: 14;
+    height: 22;
     padding: 0 1;
     text-align: left;
     color: {THEME['main_fg']};

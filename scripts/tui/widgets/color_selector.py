@@ -82,7 +82,10 @@ class ColorSelector(Static):
                 hex_color = f"#{r:02x}{g:02x}{b:02x}"
                 
                 # Show cursor position with special character
-                if abs(nx - self.cursor_x) < 0.05 and abs(ny - self.cursor_y) < 0.05:
+                # Threshold must be less than half the cell spacing for single-cell precision
+                # X: 1/59 ≈ 0.0169, threshold < 0.0085
+                # Y: 1/19 ≈ 0.0526, threshold < 0.026
+                if abs(nx - self.cursor_x) < 0.008 and abs(ny - self.cursor_y) < 0.025:
                     line_chars.append(f"[{hex_color}]◉[/]")
                 else:
                     line_chars.append(f"[{hex_color}]█[/]")
@@ -171,19 +174,21 @@ class ColorSelector(Static):
     
     def on_key(self, event: events.Key) -> None:
         """Handle keyboard navigation"""
-        step = 0.05  # 5% movement per keypress
+        # Dynamic step: one cell at a time based on grid dimensions
+        step_x = 1.0 / (self.grid_width - 1) if self.grid_width > 1 else 0.1
+        step_y = 1.0 / (self.grid_height - 1) if self.grid_height > 1 else 0.1
         
         if event.key == "left":
-            self.cursor_x = max(0.0, self.cursor_x - step)
+            self.cursor_x = max(0.0, self.cursor_x - step_x)
             event.prevent_default()
         elif event.key == "right":
-            self.cursor_x = min(1.0, self.cursor_x + step)
+            self.cursor_x = min(1.0, self.cursor_x + step_x)
             event.prevent_default()
         elif event.key == "up":
-            self.cursor_y = max(0.0, self.cursor_y - step)
+            self.cursor_y = max(0.0, self.cursor_y - step_y)
             event.prevent_default()
         elif event.key == "down":
-            self.cursor_y = min(1.0, self.cursor_y + step)
+            self.cursor_y = min(1.0, self.cursor_y + step_y)
             event.prevent_default()
         elif event.key == "enter":
             # Select current color

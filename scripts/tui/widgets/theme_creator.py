@@ -10,8 +10,12 @@ from textual import events
 from pathlib import Path
 import json
 import sys
+import subprocess
 from .color_selector import ColorSelector
+from .countdown_bar import CountdownBar
 from ..utils.colors import generate_gradient
+from ..constants import LED_THEME_FILE, DAEMON_BINARY
+from ..theme import THEME
 
 
 class ThemeButton(Static):
@@ -57,6 +61,8 @@ class ThemeCreator(Container):
     color3 = reactive("#3a0ca3")
     theme_name = reactive("")
     active_color_input = reactive(None)  # Track which color input is being edited
+    is_previewing = reactive(False)  # Track if currently previewing
+    preview_duration = 5.0  # Preview duration in seconds
     
     def __init__(self, themes_db_path: Path, **kwargs):
         super().__init__(**kwargs)
@@ -72,36 +78,47 @@ class ThemeCreator(Container):
             picker = self.query_one("#theme-color-picker", ColorSelector)
             picker.set_color_from_hex(self.color1)
             self.active_color_input = "color1"
+            # Hide countdown bar initially
+            countdown = self.query_one("#preview-countdown", CountdownBar)
+            countdown.display = False
         except Exception as e:
             print(f"Error initializing: {e}", file=sys.stderr)
     
     def compose(self) -> ComposeResult:
         """Compose the theme creator UI"""
-        # Main horizontal split: left controls, right color picker
-        with Horizontal(id="theme-creator-main"):
-            # Left side: All controls
-            with Vertical(id="theme-controls"):
-                # Theme name input
-                with Horizontal(classes="compact-row"):
-                    yield Input(placeholder="Theme Name", id="theme-name-input", classes="name-input")
+        # Main vertical layout: controls on top, color picker below for more vertical space
+        with Vertical(id="theme-creator-main"):
+            # Top section: All controls in a horizontal layout
+            with Horizontal(id="theme-controls"):
+                # Left column: Theme name and preview
+                with Vertical(id="theme-info-column"):
+                    # Theme name input
+                    with Horizontal(classes="compact-row"):
+                        yield Input(placeholder="Theme Name", id="theme-name-input", classes="name-input")
+                    
+                    # Gradient preview
+                    with Horizontal(classes="compact-row"):
+                        yield Static("", id="gradient-preview", classes="preview-centered")
                 
-                # Gradient preview centered over color inputs
-                with Horizontal(classes="compact-row"):
-                    yield Static("", id="gradient-preview", classes="preview-centered")
-                
-                # Color inputs in one row (no labels)
-                with Horizontal(classes="compact-row"):
-                    yield Input(placeholder="#ffbe0b", value=self.color1, id="color1-input", classes="color-input", max_length=7)
-                    yield Input(placeholder="#ff006e", value=self.color2, id="color2-input", classes="color-input", max_length=7)
-                    yield Input(placeholder="#3a0ca3", value=self.color3, id="color3-input", classes="color-input", max_length=7)
-                
-                # Buttons below hex inputs
-                with Horizontal(id="button-row"):
-                    yield ThemeButton("Save", "save", "S", id="save-button")
-                    yield ThemeButton("Clear", "clear", "C", id="clear-button")
+                # Right column: Color inputs and buttons
+                with Vertical(id="theme-inputs-column"):
+                    # Color inputs in one row (no labels)
+                    with Horizontal(classes="compact-row"):
+                        yield Input(placeholder="#ffbe0b", value=self.color1, id="color1-input", classes="color-input", max_length=7)
+                        yield Input(placeholder="#ff006e", value=self.color2, id="color2-input", classes="color-input", max_length=7)
+                        yield Input(placeholder="#3a0ca3", value=self.color3, id="color3-input", classes="color-input", max_length=7)
+                    
+                    # Buttons below hex inputs
+                    with Horizontal(id="button-row"):
+                        yield ThemeButton("Preview", "preview", "P", id="preview-button")
+                        yield ThemeButton("Save", "save", "S", id="save-button")
+                        yield ThemeButton("Clear", "clear", "C", id="clear-button")
+                    
+                    # Countdown bar (hidden by default)
+                    yield CountdownBar(width=42, color=THEME['button_fg'], id="preview-countdown")
             
-            # Right side: Color picker (always visible)
-            yield ColorSelector(width=30, height=12, id="theme-color-picker")
+            # Bottom section: Color picker with more vertical space to show gradient to black
+            yield ColorSelector(width=60, height=20, id="theme-color-picker")
     
     def on_input_changed(self, event: Input.Changed) -> None:
         """Update colors and preview when inputs change"""
@@ -122,7 +139,11 @@ class ThemeCreator(Container):
     def on_theme_button_button_clicked(self, message: ThemeButton.ButtonClicked) -> None:
         """Handle button clicks"""
         print(f"\n=== BUTTON CLICKED: {message.button_id} ===", file=sys.stderr)
-        if message.button_id == "save":
+        if message.button_id == "preview":
+            print("Calling action_preview_theme()", file=sys.stderr)
+            self.action_preview_theme()
+            print("action_preview_theme() completed", file=sys.stderr)
+        elif message.button_id == "save":
             print("Calling action_save_theme()", file=sys.stderr)
             self.action_save_theme()
             print("action_save_theme() completed", file=sys.stderr)
@@ -224,6 +245,89 @@ class ThemeCreator(Container):
         # Focus the theme creator so user sees the loaded theme
         theme_input.focus()
     
+    def action_preview_theme(self) -> None:
+        """Preview the custom theme on LEDs for a few seconds"""
+        if self.is_previewing:
+            print("Already previewing, ignoring request", file=sys.stderr)
+            return
+        
+        preview = self.query_one("#gradient-preview", Static)
+        countdown = self.query_one("#preview-countdown", CountdownBar)
+        
+        # Validate colors
+        if not all([self._is_valid_hex(c) for c in [self.color1, self.color2, self.color3]]):
+            preview.update("✗ Invalid colors for preview")
+            return
+        
+        try:
+            # Generate the 22-color gradient
+            colors_22 = generate_gradient([self.color1, self.color2, self.color3], 22)
+            
+            if len(colors_22) != 22:
+                preview.update(f"✗ Got {len(colors_22)} colors, expected 22")
+                return
+            
+            # Save current theme to restore later
+            if LED_THEME_FILE.exists():
+                self.saved_theme = LED_THEME_FILE.read_text().strip()
+            else:
+                self.saved_theme = "match"
+            
+            # Create temporary preview theme
+            if self.themes_db_path.exists():
+                db_data = json.loads(self.themes_db_path.read_text())
+            else:
+                db_data = {"themes": {}}
+            
+            db_data["themes"]["__preview__"] = {
+                "name": "Preview",
+                "colors": colors_22
+            }
+            
+            # Save themes database with preview theme
+            self.themes_db_path.write_text(json.dumps(db_data, indent=2))
+            
+            # Apply preview theme
+            LED_THEME_FILE.parent.mkdir(parents=True, exist_ok=True)
+            LED_THEME_FILE.write_text("__preview__\n")
+            LED_THEME_FILE.touch()
+            
+            # Show countdown and mark as previewing
+            self.is_previewing = True
+            countdown.display = True
+            preview.update(f"👁 Previewing for {int(self.preview_duration)}s...")
+            
+            # Start countdown
+            countdown.start_countdown(self.preview_duration, on_complete=self._end_preview)
+            
+        except Exception as e:
+            preview.update(f"✗ Preview error: {str(e)[:40]}")
+            print(f"Preview error: {e}", file=sys.stderr)
+            self.is_previewing = False
+    
+    def _end_preview(self) -> None:
+        """Restore original theme after preview"""
+        try:
+            countdown = self.query_one("#preview-countdown", CountdownBar)
+            preview = self.query_one("#gradient-preview", Static)
+            
+            # Restore original theme
+            LED_THEME_FILE.write_text(f"{self.saved_theme}\n")
+            LED_THEME_FILE.touch()
+            
+            # Hide countdown bar
+            countdown.display = False
+            self.is_previewing = False
+            
+            # Restore preview display
+            self._update_preview()
+            
+            print("Preview ended, theme restored", file=sys.stderr)
+            
+        except Exception as e:
+            print(f"Error ending preview: {e}", file=sys.stderr)
+            self.is_previewing = False
+    
     def action_save_theme(self) -> None:
         """Save the custom theme"""
         theme_input = self.query_one("#theme-name-input", Input)
@@ -302,13 +406,14 @@ class ThemeCreator(Container):
         self.query_one("#color3-input", Input).value = self.color3
         self._update_preview()
     
-    def on_key(self, event) -> None:
-        """Handle key presses for color input focus"""
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        """Handle when any descendant widget gains focus (mouse or keyboard)"""
         # When a color input gains focus, update the picker to show that color
         try:
-            focused = self.app.focused
-            picker = self.query_one("#theme-color-picker", ColorSelector)
+            # Check if the focused widget is one of our color inputs
+            focused = event.widget
             if focused and hasattr(focused, 'id'):
+                picker = self.query_one("#theme-color-picker", ColorSelector)
                 if focused.id == "color1-input":
                     self.active_color_input = "color1"
                     picker.set_color_from_hex(self.color1)
@@ -318,8 +423,8 @@ class ThemeCreator(Container):
                 elif focused.id == "color3-input":
                     self.active_color_input = "color3"
                     picker.set_color_from_hex(self.color3)
-        except:
-            pass
+        except Exception as e:
+            print(f"Error handling input focus: {e}", file=sys.stderr)
     
     def on_color_selector_color_selected(self, message: ColorSelector.ColorSelected) -> None:
         """Handle color selection from picker"""

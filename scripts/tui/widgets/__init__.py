@@ -10,6 +10,7 @@ from .theme_creator import ThemeCreator
 from .color_selector import ColorSelector
 from .animations import AnimationsPanel
 from .parameter_slider import ParameterSlider
+from .countdown_bar import CountdownBar
 
 __all__ = [
     "BorderTop",
@@ -27,4 +28,5 @@ __all__ = [
     "ColorSelector",
     "AnimationsPanel",
     "ParameterSlider",
+    "CountdownBar",
 ]
