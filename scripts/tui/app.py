@@ -30,7 +30,6 @@ from .styles import CSS
 from .widgets import (
     BorderTop,
     BorderMiddle,
-    CollapsibleBorderMiddle,
     Spacer,
     Filler,
     ControlFooterBorder,
@@ -75,7 +74,7 @@ class ForgeworkLightsTUI(App):
                 yield Spacer()
                 yield BorderMiddle("Theme Selection")
                 yield GradientPanel(id="gradient-panel")
-                yield CollapsibleBorderMiddle("Create Custom Theme", section_id="theme-creator", is_expanded=False, id="theme-creator-border")
+                yield BorderMiddle("Create Custom Theme")
                 yield ThemeCreator(THEMES_DB_PATH, id="theme-creator")
                 yield BorderMiddle("Animations")
                 yield AnimationsPanel(id="animations-panel")
@@ -100,10 +99,6 @@ class ForgeworkLightsTUI(App):
         
         # Start watching for Omarchy theme changes (inotify-based)
         self._start_theme_watcher()
-        
-        # Hide theme creator initially (collapsed state)
-        theme_creator = self.query_one("#theme-creator", ThemeCreator)
-        theme_creator.display = False
         
         # Focus the gradient panel for keyboard navigation
         gradient_panel = self.query_one("#gradient-panel", GradientPanel)
@@ -293,11 +288,6 @@ class ForgeworkLightsTUI(App):
         except Exception as e:
             print(f"Failed to apply brightness: {e}", file=sys.stderr)
     
-    def on_collapsible_border_middle_toggled(self, message: CollapsibleBorderMiddle.Toggled) -> None:
-        """Handle collapsible border toggle"""
-        if message.section_id == "theme-creator":
-            theme_creator = self.query_one("#theme-creator", ThemeCreator)
-            theme_creator.display = message.is_expanded
     
     def on_theme_creator_theme_created(self, message: ThemeCreator.ThemeCreated) -> None:
         """Handle custom theme creation"""
@@ -312,14 +302,8 @@ class ForgeworkLightsTUI(App):
     def on_gradient_panel_theme_edit_requested(self, message: GradientPanel.ThemeEditRequested) -> None:
         """Handle theme edit request from gradient panel"""
         print(f"Edit requested for theme: {message.theme_key}", file=sys.stderr)
-        # Expand the theme creator section if collapsed
-        border = self.query_one("#theme-creator-border", CollapsibleBorderMiddle)
-        theme_creator = self.query_one("#theme-creator", ThemeCreator)
-        if not border.is_expanded:
-            border.is_expanded = True
-            border.refresh()
-            theme_creator.display = True
         # Load the theme into the theme creator
+        theme_creator = self.query_one("#theme-creator", ThemeCreator)
         theme_creator.load_theme_for_editing(message.theme_key, message.theme_name, message.colors)
     
     def on_gradient_panel_theme_delete_requested(self, message: GradientPanel.ThemeDeleteRequested) -> None:
