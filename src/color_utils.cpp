@@ -56,7 +56,7 @@ void apply_gamma_brightness_safety(std::vector<RGB>& leds, const Gamma& g,
   // Apply scaling uniformly to maintain color ratios
   static bool logged_limiting = false;
   if (!logged_limiting) {
-    std::fprintf(stderr, "[omarchy-argb] current limiting engaged: %.2fA → %.2fA (scale %.3f)\n",
+    std::fprintf(stderr, "[forgeworklights] current limiting engaged: %.2fA → %.2fA (scale %.3f)\n",
                  estimated_current, HARD_RAIL_LIMIT_AMPS, scale);
     logged_limiting = true;
   }

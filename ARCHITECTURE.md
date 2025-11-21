@@ -6,12 +6,12 @@ ForgeworkLights uses a secure two-tier architecture to minimize privilege escala
 
 ### Components
 
-#### 1. User Daemon (`omarchy-argb`)
-- **Location**: `/usr/local/bin/omarchy-argb`
+#### 1. User Daemon (`forgeworklights`)
+- **Location**: `/usr/local/bin/forgeworklights`
 - **Permissions**: `755` (user-executable)
 - **Owner**: User
 - **Runs as**: Logged-in Omarchy user
-- **Service**: User-level systemd (`~/.config/systemd/user/omarchy-argb.service`)
+- **Service**: User-level systemd (`~/.config/systemd/user/forgeworklights.service`)
 
 **Responsibilities:**
 - Monitor theme changes via inotify
@@ -83,7 +83,7 @@ The installer (`install.sh`) handles proper installation:
 
 ```bash
 # User daemon - standard binary installation
-sudo install -Dm755 build/omarchy-argb /usr/local/bin/omarchy-argb
+sudo install -Dm755 build/forgeworklights /usr/local/bin/forgeworklights
 
 # Root helper - setuid-root permissions
 sudo install -Dm755 -o root -g root build/fw_root_helper /usr/local/libexec/fw_root_helper
@@ -100,11 +100,11 @@ ls -l /usr/local/libexec/fw_root_helper
 # The 's' in permissions indicates setuid bit is set
 
 # Verify daemon is user-owned
-ls -l /usr/local/bin/omarchy-argb
-# Should show: -rwxr-xr-x 1 root root ... omarchy-argb
+ls -l /usr/local/bin/forgeworklights
+# Should show: -rwxr-xr-x 1 root root ... forgeworklights
 
 # Check service runs as user
-systemctl --user status omarchy-argb
+systemctl --user status forgeworklights
 ```
 
 ### Current Limiting and Safety
@@ -140,9 +140,9 @@ Where:
 
 **CLI Flag:**
 ```bash
-omarchy-argb daemon --safety=on    # Default
-omarchy-argb daemon --safety=off   # Disable limiting
-omarchy-argb once --safety=on      # Also works for test pattern
+forgeworklights daemon --safety=on    # Default
+forgeworklights daemon --safety=off   # Disable limiting
+forgeworklights once --safety=on      # Also works for test pattern
 ```
 
 ### Security Considerations

@@ -31,5 +31,5 @@ tui-debug.log
 .DS_Store
 
 # Config files (user-specific, not in repo)
-# Note: actual configs live in ~/.config/omarchy-argb/
+# Note: actual configs live in ~/.config/forgeworklights/
 animation-params.json

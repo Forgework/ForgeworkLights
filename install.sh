@@ -206,8 +206,8 @@ install_binaries() {
     echo "Installing binaries..."
     
     # Install main binary
-    sudo install -Dm755 build/omarchy-argb /usr/local/bin/omarchy-argb
-    echo -e "${GREEN}✓${NC} Installed omarchy-argb to /usr/local/bin"
+    sudo install -Dm755 build/forgeworklights /usr/local/bin/forgeworklights
+    echo -e "${GREEN}✓${NC} Installed forgeworklights to /usr/local/bin"
     
     # Install root helper with setuid-root (root:root 4755)
     # The setuid bit allows user daemon to execute it with effective root privileges
@@ -217,7 +217,7 @@ install_binaries() {
     
     # Install TUI control panel
     if [ -f scripts/options-tui.py ]; then
-        sudo install -Dm755 scripts/options-tui.py /usr/local/bin/omarchy-argb-menu
+        sudo install -Dm755 scripts/options-tui.py /usr/local/bin/forgeworklights-menu
         echo -e "${GREEN}✓${NC} Installed TUI control panel to /usr/local/bin"
         
         # Install TUI package module
@@ -232,28 +232,28 @@ install_binaries() {
     
     # Install theme sync script
     if [ -f scripts/sync-themes.py ]; then
-        sudo install -Dm755 scripts/sync-themes.py /usr/local/bin/omarchy-argb-sync-themes
+        sudo install -Dm755 scripts/sync-themes.py /usr/local/bin/forgeworklights-sync-themes
         echo -e "${GREEN}✓${NC} Installed theme sync script to /usr/local/bin"
     fi
     
     # Install floating TUI launcher
     if [ -f scripts/launch-tui-floating.sh ]; then
-        sudo install -Dm755 scripts/launch-tui-floating.sh /usr/local/bin/omarchy-argb-menu-floating
+        sudo install -Dm755 scripts/launch-tui-floating.sh /usr/local/bin/forgeworklights-menu-floating
         echo -e "${GREEN}✓${NC} Installed floating TUI launcher to /usr/local/bin"
     fi
     
     # Install sample config
-    mkdir -p ~/.config/omarchy-argb
-    if [ -f ~/.config/omarchy-argb/config.toml ]; then
+    mkdir -p ~/.config/forgeworklights
+    if [ -f ~/.config/forgeworklights/config.toml ]; then
         echo -e "${YELLOW}!${NC} Config already exists, skipping"
     else
-        cp config/config.toml.sample ~/.config/omarchy-argb/config.toml
-        echo -e "${GREEN}✓${NC} Installed config to ~/.config/omarchy-argb/config.toml"
+        cp config/config.toml.sample ~/.config/forgeworklights/config.toml
+        echo -e "${GREEN}✓${NC} Installed config to ~/.config/forgeworklights/config.toml"
     fi
 
     # Install theme database (always update)
-    cp themes.json ~/.config/omarchy-argb/themes.json
-    echo -e "${GREEN}✓${NC} Installed theme database to ~/.config/omarchy-argb/themes.json"
+    cp themes.json ~/.config/forgeworklights/themes.json
+    echo -e "${GREEN}✓${NC} Installed theme database to ~/.config/forgeworklights/themes.json"
 }
 
 # Setup systemd service
@@ -263,14 +263,14 @@ setup_systemd() {
     echo
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
         mkdir -p ~/.config/systemd/user
-        cp systemd/omarchy-argb.service ~/.config/systemd/user/
+        cp systemd/forgeworklights.service ~/.config/systemd/user/
         systemctl --user daemon-reload
         echo -e "${GREEN}✓${NC} Systemd service installed"
         
         read -p "Enable service now? [Y/n] " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-            systemctl --user enable --now omarchy-argb.service
+            systemctl --user enable --now forgeworklights.service
             echo -e "${GREEN}✓${NC} Service enabled and started"
         fi
     fi
@@ -351,9 +351,9 @@ try:
     config["custom/forgework-lights"] = {
         "format": " 󰛨 ",
         "tooltip-format": "Lights: {}",
-        "exec": 'jq -r '"'"'.theme // "Off"'"'"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo "Off"',
+        "exec": 'jq -r '"'"'.theme // "Off"'"'"' ~/.cache/forgeworklights/state.json 2>/dev/null || echo "Off"',
         "interval": 2,
-        "on-click": "/usr/local/bin/omarchy-argb-menu-floating"
+        "on-click": "/usr/local/bin/forgeworklights-menu-floating"
     }
     
     # Add to tray-expander group if it exists, otherwise modules-right
@@ -466,10 +466,10 @@ check_installation() {
     echo "Checking installation..."
     
     # Cck if binary exists and is executable
-    if [ -x /usr/local/bin/omarchy-argb ]; then
-        echo -e "${GREEN}✓${NC} omarchy-argb executable installed"
+    if [ -x /usr/local/bin/forgeworklights ]; then
+        echo -e "${GREEN}✓${NC} forgeworklights executable installed"
     else
-        echo -e "${RED}✗${NC} omarchy-argb not found or not executable"
+        echo -e "${RED}✗${NC} forgeworklights not found or not executable"
         return 1
     fi
     
@@ -503,11 +503,11 @@ main() {
     echo "========================================"
     echo ""
     echo "Quick start:"
-    echo "  Test: omarchy-argb once"
-    echo "  Run:  omarchy-argb daemon"
-    echo "  or:   systemctl --user start omarchy-argb"
+    echo "  Test: forgeworklights once"
+    echo "  Run:  forgeworklights daemon"
+    echo "  or:   systemctl --user start forgeworklights"
     echo ""
-    echo "Config: ~/.config/omarchy-argb/config.toml"
+    echo "Config: ~/.config/forgeworklights/config.toml"
     echo ""
     
     check_installation

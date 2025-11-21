@@ -139,7 +139,7 @@ class LogsModal(ModalScreen):
                     print(f"[LOGS] Error reading line: {e}", file=sys.stderr)
                     break
                     
-        except Exception as e:
+        except Eimport sysxception as e:
             print(f"[LOGS] Stream error: {e}", file=sys.stderr)
             import traceback
             traceback.print_exc()

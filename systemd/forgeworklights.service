@@ -1,10 +1,10 @@
 [Unit]
-Description=Omarchy ARGB Sync Daemon
+Description=ForgeWorkLights LED Sync Daemon
 After=dbus.service framework-system.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/omarchy-argb daemon
+ExecStart=/usr/local/bin/forgeworklights daemon
 # Turn off all 22 LEDs on stop (22 LEDs * 3 bytes = 66 bytes = 132 hex chars of zeros)
 ExecStop=/usr/local/libexec/fw_root_helper 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 Restart=on-failure

@@ -14,7 +14,7 @@ static std::string home() {
 }
 
 void Config::load_from_default() {
-  config_path = home() + "/.config/omarchy-argb/config.toml";
+  config_path = home() + "/.config/forgeworklights/config.toml";
   std::ifstream in(config_path);
   if (!in.good()) return;
   std::string line;

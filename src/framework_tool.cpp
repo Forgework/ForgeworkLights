@@ -45,12 +45,12 @@ bool FrameworkTool::sendFrame(int zone, const std::vector<RGB>& leds, ColorOrder
   // Convert to hex string for helper
   std::string hex_payload = bytes_to_hex(led_data);
   
-  std::fprintf(stderr, "[omarchy-argb] sending %zu LEDs via root helper\n", leds.size());
+  std::fprintf(stderr, "[forgeworklights] sending %zu LEDs via root helper\n", leds.size());
   
   // Fork and exec the root helper
   pid_t pid = fork();
   if (pid < 0) {
-    std::perror("[omarchy-argb] fork failed");
+    std::perror("[forgeworklights] fork failed");
     return false;
   }
   
@@ -58,25 +58,25 @@ bool FrameworkTool::sendFrame(int zone, const std::vector<RGB>& leds, ColorOrder
     // Child process: exec the root helper
     execl(ROOT_HELPER, ROOT_HELPER, hex_payload.c_str(), nullptr);
     // If exec fails, exit immediately
-    std::perror("[omarchy-argb] execl failed");
+    std::perror("[forgeworklights] execl failed");
     std::exit(1);
   }
   
   // Parent process: wait for helper to complete
   int status = 0;
   if (waitpid(pid, &status, 0) < 0) {
-    std::perror("[omarchy-argb] waitpid failed");
+    std::perror("[forgeworklights] waitpid failed");
     return false;
   }
   
   if (WIFEXITED(status)) {
     int exit_code = WEXITSTATUS(status);
     if (exit_code != 0) {
-      std::fprintf(stderr, "[omarchy-argb] root helper exit code: %d\n", exit_code);
+      std::fprintf(stderr, "[forgeworklights] root helper exit code: %d\n", exit_code);
       return false;
     }
   } else {
-    std::fprintf(stderr, "[omarchy-argb] root helper terminated abnormally\n");
+    std::fprintf(stderr, "[forgeworklights] root helper terminated abnormally\n");
     return false;
   }
   

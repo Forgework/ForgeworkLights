@@ -23,8 +23,8 @@ If you prefer to configure manually:
 ### 1. Install Launcher Script
 
 ```bash
-sudo cp scripts/launch-tui-floating.sh /usr/local/bin/omarchy-argb-menu-floating
-sudo chmod +x /usr/local/bin/omarchy-argb-menu-floating
+sudo cp scripts/launch-tui-floating.sh /usr/local/bin/forgeworklights-menu-floating
+sudo chmod +x /usr/local/bin/forgeworklights-menu-floating
 ```
 
 ### 2. Update Waybar Config
@@ -36,9 +36,9 @@ Edit `~/.config/waybar/config` and update the ForgeworkLights module:
   "custom/forgework-lights": {
     "format": " 󰛨 ",
     "tooltip-format": "Lights: {}",
-    "exec": "jq -r '.theme // \"Off\"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo 'Off'",
+    "exec": "jq -r '.theme // \"Off\"' ~/.cache/forgeworklights/state.json 2>/dev/null || echo 'Off'",
     "interval": 2,
-    "on-click": "/usr/local/bin/omarchy-argb-menu-floating"
+    "on-click": "/usr/local/bin/forgeworklights-menu-floating"
   }
 }
 ```
@@ -119,7 +119,7 @@ The launcher sets the window class to `forgework-lights-tui` for Hyprland window
 Test the floating launcher manually:
 
 ```bash
-/usr/local/bin/omarchy-argb-menu-floating
+/usr/local/bin/forgeworklights-menu-floating
 ```
 
 The TUI should open as a floating window in the upper right corner.

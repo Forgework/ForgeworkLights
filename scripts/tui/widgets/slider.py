@@ -4,9 +4,6 @@ Reusable slider widget for ForgeworkLights TUI
 from textual.widgets import Static
 from textual.reactive import reactive
 from textual.message import Message
-import re
-import sys
-import traceback
 
 
 class Slider(Static):
@@ -14,14 +11,15 @@ class Slider(Static):
     
     class ValueChanged(Message):
         """Message when slider value is changed"""
-        def __init__(self, value: int):
+        bubble = True  # Allow message to bubble to parent widgets
+        
+        def __init__(self, value: int, sender):
             super().__init__()
             self.value = value
+            self.sender = sender
     
-    BINDINGS = [
-        ("left", "decrease", "Decrease value"),
-        ("right", "increase", "Increase value"),
-    ]
+    # No arrow key bindings to avoid conflicts with parent navigation
+    BINDINGS = []
     
     value = reactive(0)
     
@@ -35,8 +33,25 @@ class Slider(Static):
         self.suffix = suffix
         self.color = color
         self.slider_width = width
-        self.can_focus = True
+        self.can_focus = False  # Don't take focus to avoid navigation conflicts
         self.step = max(1, (max_value - min_value) // 20)  # 5% increments
+        self._suppress_message = False
+    
+    def watch_value(self, old_value: int, new_value: int) -> None:
+        """Watch for value changes and post message"""
+        with open("/tmp/slider_debug.log", "a") as f:
+            f.write(f"[SLIDER {self.label}] watch_value: {old_value} -> {new_value}, suppress={self._suppress_message}, mounted={self.is_mounted}\n")
+        
+        if old_value != new_value and not self._suppress_message:
+            with open("/tmp/slider_debug.log", "a") as f:
+                f.write(f"[SLIDER {self.label}] POSTING MESSAGE: ValueChanged({new_value})\n")
+            self.post_message(self.ValueChanged(new_value, self))
+        else:
+            with open("/tmp/slider_debug.log", "a") as f:
+                f.write(f"[SLIDER {self.label}] NOT posting message (no change or suppressed)\n")
+            
+        if self.is_mounted:
+            self.refresh()
     
     def render(self) -> str:
         # Calculate filled portion
@@ -82,10 +97,6 @@ class Slider(Static):
             value_rjusted = value_text.rjust(4)
             prefix_len = len(label_text) + len(value_rjusted) + 1  # +1 for space before bar
             
-            print(f"[SLIDER {self.label}] Click at x={event.x}, prefix_len={prefix_len}, slider_width={self.slider_width}", file=sys.stderr)
-            print(f"  label_text='{label_text}' (len={len(label_text)})", file=sys.stderr)
-            print(f"  value_text='{value_text}', rjusted='{value_rjusted}' (len={len(value_rjusted)})", file=sys.stderr)
-            
             # Check if click is within slider bounds
             if event.x >= prefix_len and event.x < prefix_len + self.slider_width:
                 # Calculate value from click position
@@ -94,29 +105,22 @@ class Slider(Static):
                 new_value = self.min_value + int(ratio * (self.max_value - self.min_value))
                 new_value = max(self.min_value, min(self.max_value, new_value))
                 
-                print(f"  click_pos={click_pos}, ratio={ratio:.3f}, new_value={new_value}", file=sys.stderr)
-                
                 self.value = new_value
-                self.post_message(self.ValueChanged(new_value))
-                self.refresh()
-            else:
-                print(f"  Click outside bounds (prefix_len={prefix_len}, max={prefix_len + self.slider_width})", file=sys.stderr)
+                event.stop()  # Prevent event from bubbling up
         except Exception as e:
-            print(f"Slider click error: {e}", file=sys.stderr)
-            traceback.print_exc()
+            with open("/tmp/slider_debug.log", "a") as f:
+                f.write(f"[SLIDER {self.label}] CLICK ERROR: {e}\n")
+                import traceback
+                f.write(traceback.format_exc())
     
     def action_increase(self) -> None:
         """Increase value"""
         new_value = min(self.max_value, self.value + self.step)
         if new_value != self.value:
             self.value = new_value
-            self.post_message(self.ValueChanged(new_value))
-            self.refresh()
     
     def action_decrease(self) -> None:
         """Decrease value"""
         new_value = max(self.min_value, self.value - self.step)
         if new_value != self.value:
             self.value = new_value
-            self.post_message(self.ValueChanged(new_value))
-            self.refresh()

@@ -12,7 +12,7 @@
 namespace forgeworklights { namespace cli {
 
 static int usage() {
-  std::cout << "Usage: omarchy-argb <once|daemon|brightness> [--safety=on|off]\n";
+  std::cout << "Usage: forgeworklights <once|daemon|brightness> [--safety=on|off]\n";
   std::cout << "  once                   - Send test pattern once\n";
   std::cout << "  daemon                 - Run theme-syncing daemon\n";
   std::cout << "  brightness <0.0-1.0>   - Set brightness\n";
@@ -69,7 +69,7 @@ int run(int argc, char** argv) {
     double v = std::stod(argv[2]);
     if (v < 0.0) v = 0.0; if (v > 1.0) v = 1.0;
     const char* h = std::getenv("HOME");
-    std::string dir = std::string(h?h:"/") + "/.config/omarchy-argb";
+    std::string dir = std::string(h?h:"/") + "/.config/forgeworklights";
     std::filesystem::create_directories(dir);
     std::string path = dir + "/brightness";
     std::ofstream out(path);

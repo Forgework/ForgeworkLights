@@ -48,7 +48,7 @@ int ARGBDaemon::run() {
 
   FrameworkTool tool(cfg_.tool_path);
   Gamma gamma(cfg_.gamma_exponent);
-  auto log = [](const std::string& s){ std::fprintf(stderr, "[omarchy-argb] %s\n", s.c_str()); };
+  auto log = [](const std::string& s){ std::fprintf(stderr, "[forgeworklights] %s\n", s.c_str()); };
 
   // State
   int wd_current = -1;
@@ -75,14 +75,14 @@ int ARGBDaemon::run() {
   }
 
   // Watch brightness file
-  std::string brightness_dir = config_base() + "/omarchy-argb";
+  std::string brightness_dir = config_base() + "/forgeworklights";
   std::filesystem::create_directories(brightness_dir);
   wd_brightness_dir = add_watch(brightness_dir);
   log(std::string("watching brightness dir: ") + brightness_dir);
 
   auto read_led_theme_preference = [&]() -> std::string {
     // Read LED theme preference from config file
-    std::string pref_file = config_base() + "/omarchy-argb/led-theme";
+    std::string pref_file = config_base() + "/forgeworklights/led-theme";
     std::ifstream in(pref_file);
     if (!in.good()) return "match";  // Default to matching Omarchy theme
     std::string pref;
@@ -95,7 +95,7 @@ int ARGBDaemon::run() {
   
   auto read_animation_preference = [&]() -> std::string {
     // Read animation preference from config file
-    std::string anim_file = config_base() + "/omarchy-argb/animation";
+    std::string anim_file = config_base() + "/forgeworklights/animation";
     std::ifstream in(anim_file);
     if (!in.good()) return "static";  // Default to static
     std::string anim;
@@ -145,7 +145,7 @@ int ARGBDaemon::run() {
   };
 
   auto read_brightness = [&](){
-    std::string p = config_base() + "/omarchy-argb/brightness";
+    std::string p = config_base() + "/forgeworklights/brightness";
     std::ifstream in(p);
     if (!in.good()) return cfg_.max_brightness;
     double v = cfg_.max_brightness;
@@ -156,7 +156,7 @@ int ARGBDaemon::run() {
 
   auto write_state = [&](const std::vector<RGB>& leds){
     const char* h = std::getenv("HOME");
-    std::string cache_dir = std::string(h?h:"/") + "/.cache/omarchy-argb";
+    std::string cache_dir = std::string(h?h:"/") + "/.cache/forgeworklights";
     std::filesystem::create_directories(cache_dir);
     std::string state_path = cache_dir + "/state.json";
     std::ofstream out(state_path);
@@ -176,7 +176,7 @@ int ARGBDaemon::run() {
 
   // Sync themes from Omarchy directory on startup
   log("syncing themes from omarchy directory...");
-  int sync_rc = std::system("python3 /usr/local/bin/omarchy-argb-sync-themes 2>/dev/null");
+  int sync_rc = std::system("python3 /usr/local/bin/forgeworklights-sync-themes 2>/dev/null");
   if (sync_rc == 0) {
     log("theme sync completed");
   } else {
@@ -186,11 +186,11 @@ int ARGBDaemon::run() {
   // Load theme database
   ThemeDatabase theme_db;
   const char* home = std::getenv("HOME");
-  std::string db_path = std::string(home ? home : "/") + "/.config/omarchy-argb/themes.json";
+  std::string db_path = std::string(home ? home : "/") + "/.config/forgeworklights/themes.json";
   std::string db_dir;
   if (!theme_db.load(db_path)) {
     // Try system-wide location
-    db_path = "/usr/local/share/omarchy-argb/themes.json";
+    db_path = "/usr/local/share/forgeworklights/themes.json";
     theme_db.load(db_path);
   }
   
@@ -325,7 +325,7 @@ int ARGBDaemon::run() {
   
   // Helper to read animation parameters from JSON file
   auto get_param = [&](const std::string& anim_name, const std::string& param_name, double default_val) -> double {
-    std::string params_file = config_base() + "/omarchy-argb/animation-params.json";
+    std::string params_file = config_base() + "/forgeworklights/animation-params.json";
     std::ifstream in(params_file);
     if (!in.good()) return default_val;
     

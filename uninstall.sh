@@ -13,10 +13,10 @@ echo "========================================"
 echo ""
 
 # Stop service first to prevent it from turning LEDs back on
-if systemctl --user is-active omarchy-argb.service &> /dev/null; then
+if systemctl --user is-active forgeworklights.service &> /dev/null; then
     echo "Stopping service..."
-    systemctl --user stop omarchy-argb.service
-    systemctl --user disable omarchy-argb.service
+    systemctl --user stop forgeworklights.service
+    systemctl --user disable forgeworklights.service
     echo -e "${GREEN}✓${NC} Service stopped and disabled"
 fi
 
@@ -47,31 +47,31 @@ else
 fi
 
 # Remove systemd service
-if [ -f ~/.config/systemd/user/omarchy-argb.service ]; then
-    rm ~/.config/systemd/user/omarchy-argb.service
+if [ -f ~/.config/systemd/user/forgeworklights.service ]; then
+    rm ~/.config/systemd/user/forgeworklights.service
     systemctl --user daemon-reload
     echo -e "${GREEN}✓${NC} Systemd service removed"
 fi
 
 # Remove binaries
-if [ -f /usr/local/bin/omarchy-argb ]; then
-    sudo rm /usr/local/bin/omarchy-argb
-    echo -e "${GREEN}✓${NC} Removed /usr/local/bin/omarchy-argb"
+if [ -f /usr/local/bin/forgeworklights ]; then
+    sudo rm /usr/local/bin/forgeworklights
+    echo -e "${GREEN}✓${NC} Removed /usr/local/bin/forgeworklights"
 fi
 
-if [ -f /usr/local/bin/omarchy-argb-menu ]; then
-    sudo rm /usr/local/bin/omarchy-argb-menu
-    echo -e "${GREEN}✓${NC} Removed /usr/local/bin/omarchy-argb-menu"
+if [ -f /usr/local/bin/forgeworklights-menu ]; then
+    sudo rm /usr/local/bin/forgeworklights-menu
+    echo -e "${GREEN}✓${NC} Removed /usr/local/bin/forgeworklights-menu"
 fi
 
-if [ -f /usr/local/bin/omarchy-argb-sync-themes ]; then
-    sudo rm /usr/local/bin/omarchy-argb-sync-themes
-    echo -e "${GREEN}✓${NC} Removed /usr/local/bin/omarchy-argb-sync-themes"
+if [ -f /usr/local/bin/forgeworklights-sync-themes ]; then
+    sudo rm /usr/local/bin/forgeworklights-sync-themes
+    echo -e "${GREEN}✓${NC} Removed /usr/local/bin/forgeworklights-sync-themes"
 fi
 
-if [ -f /usr/local/bin/omarchy-argb-menu-floating ]; then
-    sudo rm /usr/local/bin/omarchy-argb-menu-floating
-    echo -e "${GREEN}✓${NC} Removed /usr/local/bin/omarchy-argb-menu-floating"
+if [ -f /usr/local/bin/forgeworklights-menu-floating ]; then
+    sudo rm /usr/local/bin/forgeworklights-menu-floating
+    echo -e "${GREEN}✓${NC} Removed /usr/local/bin/forgeworklights-menu-floating"
 fi
 
 # Remove root helper
@@ -106,18 +106,18 @@ fi
 
 # Ask about config
 echo ""
-read -p "Remove configuration (~/.config/omarchy-argb)? [Y/n] " -n 1 -r
+read -p "Remove configuration (~/.config/forgeworklights)? [Y/n] " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-    rm -rf ~/.config/omarchy-argb
+    rm -rf ~/.config/forgeworklights
     echo -e "${GREEN}✓${NC} Configuration removed"
 fi
 
 # Ask about cache
-read -p "Remove cache (~/.cache/omarchy-argb)? [Y/n] " -n 1 -r
+read -p "Remove cache (~/.cache/forgeworklights)? [Y/n] " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-    rm -rf ~/.cache/omarchy-argb
+    rm -rf ~/.cache/forgeworklights
     echo -e "${GREEN}✓${NC} Cache removed"
 fi
 
@@ -220,12 +220,12 @@ echo ""
 echo -e "${GREEN}Uninstall complete${NC}"
 echo ""
 echo "Files removed:"
-echo "  - /usr/local/bin/omarchy-argb"
-echo "  - /usr/local/bin/omarchy-argb-menu"
-echo "  - /usr/local/bin/omarchy-argb-sync-themes"
-echo "  - /usr/local/bin/omarchy-argb-menu-floating"
+echo "  - /usr/local/bin/forgeworklights"
+echo "  - /usr/local/bin/forgeworklights-menu"
+echo "  - /usr/local/bin/forgeworklights-sync-themes"
+echo "  - /usr/local/bin/forgeworklights-menu-floating"
 echo "  - /usr/local/libexec/fw_root_helper"
-echo "  - ~/.config/systemd/user/omarchy-argb.service"
+echo "  - ~/.config/systemd/user/forgeworklights.service"
 echo ""
 echo "Backups created (if modified):"
 echo "  - ~/.config/waybar/config.*.uninstall-backup"

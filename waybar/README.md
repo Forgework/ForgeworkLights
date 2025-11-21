@@ -6,8 +6,8 @@ Add ForgeworkLights module to your Waybar configuration.
 
 1. Copy the TUI script to your PATH:
    ```bash
-   sudo cp scripts/options-tui.py /usr/local/bin/omarchy-argb-menu
-   sudo chmod +x /usr/local/bin/omarchy-argb-menu
+   sudo cp scripts/options-tui.py /usr/local/bin/forgeworklights-menu
+   sudo chmod +x /usr/local/bin/forgeworklights-menu
    ```
 
 2. Add module to your `~/.config/waybar/config`:
@@ -17,9 +17,9 @@ Add ForgeworkLights module to your Waybar configuration.
        "format": " 󰛨 ",
        "tooltip": true,
        "tooltip-format": "ForgeworkLights: {}",
-       "exec": "jq -r '.theme // \"No theme\"' ~/.cache/omarchy-argb/state.json 2>/dev/null || echo 'Off'",
+       "exec": "jq -r '.theme // \"No theme\"' ~/.cache/forgeworklights/state.json 2>/dev/null || echo 'Off'",
        "interval": 2,
-       "on-click": "kitty -e /usr/local/bin/omarchy-argb-menu"
+       "on-click": "kitty -e /usr/local/bin/forgeworklights-menu"
      }
    }
    ```
@@ -62,7 +62,7 @@ Add ForgeworkLights module to your Waybar configuration.
 - `python` + `textual` - Terminal UI control panel (`sudo pacman -S python`, then `pip install --user textual`)
 - `bc` - Calculator for brightness percentage (`sudo pacman -S bc`)
 - A terminal emulator (kitty, alacritty, foot, wezterm, etc.) - auto-detected by installer
-- Running `omarchy-argb daemon`
+- Running `forgeworklights daemon`
 
 **Note:** The installer will automatically detect your terminal emulator and configure waybar to launch the TUI in it.
 

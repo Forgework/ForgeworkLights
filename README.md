@@ -85,19 +85,19 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 
 # Install daemon (runs as user)
-sudo install -Dm755 build/omarchy-argb /usr/local/bin/omarchy-argb
+sudo install -Dm755 build/forgeworklights /usr/local/bin/forgeworklights
 
 # Install root helper (privileged hardware access only, setuid-root)
 sudo install -Dm755 -o root -g root build/fw_root_helper /usr/local/libexec/fw_root_helper
 sudo chmod 4755 /usr/local/libexec/fw_root_helper
 
 # Install TUI (optional)
-sudo install -Dm755 scripts/options-tui.py /usr/local/bin/omarchy-argb-menu
+sudo install -Dm755 scripts/options-tui.py /usr/local/bin/forgeworklights-menu
 ```
 
 ## Configuration
 
-Create config file at `~/.config/omarchy-argb/config.toml`:
+Create config file at `~/.config/forgeworklights/config.toml`:
 
 ```toml
 led_count = 22
@@ -124,9 +124,9 @@ The Framework JARGB1 header provides a 5V rail with **2.4A maximum safe draw**. 
 
 Enable/disable with the `--safety` flag:
 ```bash
-omarchy-argb daemon --safety=on   # Default: enable 2.4A limiting
-omarchy-argb daemon --safety=off  # Disable limiting
-omarchy-argb once --safety=on     # Also works with test command
+forgeworklights daemon --safety=on   # Default: enable 2.4A limiting
+forgeworklights daemon --safety=off  # Disable limiting
+forgeworklights once --safety=on     # Also works with test command
 ```
 
 Brightness is always clamped to [0.0, 1.0] regardless of safety mode.
@@ -137,15 +137,15 @@ Brightness is always clamped to [0.0, 1.0] regardless of safety mode.
 
 ```bash
 # Test pattern (one-time)
-omarchy-argb once
-omarchy-argb once --safety=off     # Disable current limiting
+forgeworklights once
+forgeworklights once --safety=off     # Disable current limiting
 
 # Run daemon (foreground)
-omarchy-argb daemon
-omarchy-argb daemon --safety=on    # Explicit safety mode (default)
+forgeworklights daemon
+forgeworklights daemon --safety=on    # Explicit safety mode (default)
 
 # Adjust brightness (0.0-1.0)
-omarchy-argb brightness 0.5
+forgeworklights brightness 0.5
 ```
 
 ### Systemd Service
@@ -154,13 +154,13 @@ Enable automatic startup:
 
 ```bash
 # Copy service file
-cp systemd/omarchy-argb.service ~/.config/systemd/user/
+cp systemd/forgeworklights.service ~/.config/systemd/user/
 
 # Enable and start
-systemctl --user enable --now omarchy-argb.service
+systemctl --user enable --now forgeworklights.service
 
 # Check status
-systemctl --user status omarchy-argb
+systemctl --user status forgeworklights
 ```
 
 The daemon runs as your user via systemd user service. Hardware access is handled by a dedicated setuid-root helper binary (`/usr/local/libexec/fw_root_helper`) that provides secure, validated access to framework_tool.
@@ -171,7 +171,7 @@ The daemon runs as your user via systemd user service. Hardware access is handle
 
 ForgeworkLights uses a secure two-tier architecture:
 
-1. **User Daemon** (`omarchy-argb daemon`)
+1. **User Daemon** (`forgeworklights daemon`)
    - Runs as your user via systemd user service
    - Monitors theme changes via inotify
    - Calculates LED colors and animations
@@ -240,9 +240,9 @@ theme[temp_end]="#ECEFF4"
 - Verify theme has `btop.theme` file
 
 **Theme changes not detected:**
-- Check daemon is running: `systemctl --user status omarchy-argb`
+- Check daemon is running: `systemctl --user status forgeworklights`
 - Verify theme symlink: `ls -l ~/.config/omarchy/current/theme`
-- Check logs: `journalctl --user -u omarchy-argb -f`
+- Check logs: `journalctl --user -u forgeworklights -f`
 
 **Permission errors:**
 - Verify root helper is installed: `ls -l /usr/local/libexec/fw_root_helper`
