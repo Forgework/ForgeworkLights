@@ -2,7 +2,7 @@
 #include <string>
 #include <functional>
 
-namespace omarchy {
+namespace forgeworklights {
 
 class ThemeWatcher {
 public:

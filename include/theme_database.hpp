@@ -5,7 +5,7 @@
 #include <optional>
 #include <unordered_map>
 
-namespace omarchy {
+namespace forgeworklights {
 
 struct ThemeColors {
   std::string name;
@@ -31,4 +31,4 @@ private:
   std::string db_path_;
 };
 
-} // namespace omarchy
+} // namespace forgeworklights

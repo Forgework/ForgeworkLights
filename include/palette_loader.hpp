@@ -3,7 +3,7 @@
 #include <string>
 #include "palette.hpp"
 
-namespace omarchy {
+namespace forgeworklights {
 
 // Load palette from a chosen palette file. Currently supports simple JSON with keys:
 // accent, accent2, accent3 as "#RRGGBB" (for 3-color gradient).

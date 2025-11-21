@@ -9,7 +9,7 @@
 #include <map>
 #include <memory>
 
-namespace omarchy {
+namespace forgeworklights {
 
 // Helper functions for RGB (defined in color.hpp)
 inline RGB rgb_scale(const RGB& c, double factor) {
@@ -479,4 +479,4 @@ public:
   }
 };
 
-} // namespace omarchy
+} // namespace forgeworklights

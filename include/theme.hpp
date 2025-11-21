@@ -2,7 +2,7 @@
 #include <string>
 #include <optional>
 
-namespace omarchy {
+namespace forgeworklights {
 
 struct ThemePaths {
   std::string symlink_path;

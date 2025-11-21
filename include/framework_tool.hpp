@@ -3,7 +3,7 @@
 #include <vector>
 #include "color.hpp"
 
-namespace omarchy {
+namespace forgeworklights {
 
 enum class ColorOrder { RGB, GRB };
 

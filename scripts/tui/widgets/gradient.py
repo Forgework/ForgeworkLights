@@ -90,15 +90,6 @@ class GradientPanel(ScrollableContainer):
         # Use reactive focus state - only show selection highlight if focused
         show_highlight = self.is_focused
         
-        # Get current Omarchy theme
-        omarchy_theme_name = "Unknown"
-        try:
-            if THEME_SYMLINK.exists() and THEME_SYMLINK.is_symlink():
-                theme_dir = THEME_SYMLINK.resolve()
-                omarchy_theme_name = theme_dir.name
-        except:
-            pass
-        
         # Get current LED theme setting
         led_theme = "match"
         try:
@@ -119,7 +110,7 @@ class GradientPanel(ScrollableContainer):
             is_selected = self.selected_index == 0
             marker = "→" if led_theme == "match" else " "
             
-            display_name = f"Match Omarchy ({omarchy_theme_name})"
+            display_name = "Match Omarchy"
             
             # Calculate visible content length: marker(1) + space(1) + display_name + space(1)
             visible_len = 1 + 1 + len(display_name) + 1
@@ -418,7 +409,7 @@ class GradientPanel(ScrollableContainer):
         width = max(60, self.size.width if self.size.width > 0 else 70)
         
         # Adjust for padding: 1 blank line + 1 match omarchy + 1 blank line = 3 lines offset
-        # But Match Omarchy is at y=1 (index 0)
+        # Match Omarchy is at y=1 (index 0)
         # First real theme is at y=3 (index 1)
         if y == 0:
             # Blank line at top, ignore

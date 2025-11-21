@@ -85,17 +85,26 @@ ControlFooterBorder:focus {{
 }}
 
 #logs-panel {{
-    width: 90%;
-    max-width: 120;
-    height: 80%;
-    max-height: 40;
+    width: 98%;
+    height: 95%;
     background: {THEME['main_bg']};
+}}
+
+#logs-header {{
+    width: 100%;
+    height: auto;
+}}
+
+#logs-footer {{
+    width: 100%;
+    height: auto;
 }}
 
 #logs-content {{
     width: 100%;
-    height: 100%;
-    scrollbar-size: 0 0;
+    height: 1fr;
+    scrollbar-size: 1 1;
+    scrollbar-color: {THEME['hi_fg']} {THEME['inactive_fg']};
 }}
 
 #logs-text {{
@@ -233,7 +242,7 @@ ThemeCreator ColorSelector:focus {{
     border: solid {THEME['hi_fg']};
 }}
 
-ThemeCreator ColorSelector Horizontal {{
+ThemeCreator ColorSelector #color-selector-main {{
     height: 22;
     max-height: 22;
     overflow: hidden;
@@ -250,12 +259,43 @@ ThemeCreator ColorSelector #color-grid {{
 
 ThemeCreator ColorSelector #color-info {{
     width: auto;
-    min-width: 10;
+    min-width: 30;
     height: 22;
     padding: 0 1;
     text-align: left;
     color: {THEME['main_fg']};
     overflow: hidden;
+}}
+
+ThemeCreator ColorSelector #color-preview {{
+    height: 1;
+    width: 100%;
+}}
+
+ThemeCreator ColorSelector #hex-display {{
+    height: 1;
+    width: 100%;
+    margin-bottom: 1;
+}}
+
+ThemeCreator ColorSelector #spacer1 {{
+    height: 1;
+}}
+
+ThemeCreator ColorSelector #hint-text {{
+    height: 1;
+    margin-top: 1;
+}}
+
+ThemeCreator ColorSelector Slider {{
+    width: 100%;
+    height: 1;
+}}
+
+/* Generic Slider Styling */
+Slider {{
+    width: 100%;
+    height: 1;
 }}
 
 /* Animations Panel Styling */

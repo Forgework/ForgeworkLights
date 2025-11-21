@@ -28,15 +28,14 @@ from .constants import (
 )
 from .styles import CSS
 from .widgets import (
+    ControlFooterBorder,
     BorderTop,
     BorderMiddle,
-    Spacer,
     Filler,
-    ControlFooterBorder,
+    Spacer,
     StatusPanel,
     GradientPanel,
     BrightnessPanel,
-    LogsModal,
     ThemeCreator,
     AnimationsPanel
 )
@@ -50,7 +49,6 @@ class ForgeworkLightsTUI(App):
     BINDINGS = [
         ("ctrl+q", "quit", "Quit"),
         ("escape", "quit", "Quit"),
-        ("l", "view_logs", "Logs"),
     ]
     
     def __init__(self):
@@ -63,12 +61,14 @@ class ForgeworkLightsTUI(App):
         self.inotify_fd = None
         self.inotify_worker = None
         self.last_omarchy_theme = None
+        self.omarchy_wd = None  # Watch descriptor for Omarchy theme directory
+        self.config_wd = None   # Watch descriptor for config directory
     
     def compose(self) -> ComposeResult:
         with Container(id="main-panel"):
             # Scrollable content area
             with Container(id="content-area"):
-                yield BorderTop("ForgeworkLights Control Panel")
+                yield BorderTop("ForgeWorkLights")
                 yield Spacer()
                 yield StatusPanel(id="status-panel")
                 yield Spacer()
@@ -90,8 +90,8 @@ class ForgeworkLightsTUI(App):
     
     def on_mount(self) -> None:
         """Initialize the app"""
-        self.title = "ForgeworkLights"
-        self.sub_title = "[Tab] Switch  [↑↓←→] Navigate  [Enter] Apply  [S] Save  [C] Clear  [L] Logs  [Ctrl+Q] Quit"
+        self.title = "ForgeWorkLights"
+        self.sub_title = "[Tab] Switch  [↑↓←→] Navigate  [Enter] Apply  [S] Save  [C] Clear  [Ctrl+Q] Quit"
         self.refresh_status()
         # Start periodic update every 2 seconds (only for daemon status now)
         # Brightness, theme, and themes.json are all handled by inotify
@@ -100,14 +100,22 @@ class ForgeworkLightsTUI(App):
         # Start watching for Omarchy theme changes (inotify-based)
         self._start_theme_watcher()
         
+        # Start periodic status panel refresh (every 1 second when focused)
+        self.set_interval(1.0, self._periodic_status_refresh)
+        
         # Focus the gradient panel for keyboard navigation
         gradient_panel = self.query_one("#gradient-panel", GradientPanel)
         gradient_panel.focus()
     
+    def _periodic_status_refresh(self) -> None:
+        """Refresh status panel periodically"""
+        status_panel = self.query_one("#status-panel", StatusPanel)
+        status_panel.refresh()
+    
     def _refresh_daemon_status(self) -> None:
         """Refresh only daemon status (polling - can't use inotify for process check)"""
         try:
-            result = subprocess.run(["pgrep", "-x", "omarchy-argb"], capture_output=True)
+            result = subprocess.run(["pgrep", "-x", "forgeworklights"], capture_output=True)
             daemon_status = "Running " if result.returncode == 0 else "Stopped "
         except:
             daemon_status = "Unknown"
@@ -121,7 +129,7 @@ class ForgeworkLightsTUI(App):
         
         # Get daemon status
         try:
-            result = subprocess.run(["pgrep", "-x", "omarchy-argb"], capture_output=True)
+            result = subprocess.run(["pgrep", "-x", "forgeworklights"], capture_output=True)
             daemon_status = "Running " if result.returncode == 0 else "Stopped "
         except:
             daemon_status = "Unknown"
@@ -163,10 +171,15 @@ class ForgeworkLightsTUI(App):
         except:
             brightness_pct = 100
         
-        # Update panels
+        # Update panels - reactive watchers will trigger refresh automatically
+        print(f"[TUI] ===== UPDATING STATUS PANEL =====", file=sys.stderr)
+        print(f"[TUI] Daemon: {daemon_status}", file=sys.stderr)
+        print(f"[TUI] Theme: {theme}", file=sys.stderr)
+        print(f"[TUI] Brightness: {brightness_pct}%", file=sys.stderr)
+        
         status_panel = self.query_one("#status-panel", StatusPanel)
         status_panel.daemon_status = daemon_status
-        status_panel.theme_name = theme
+        status_panel.current_theme = theme  # Changed to match gradient panel
         status_panel.brightness_value = brightness_pct
         
         gradient_panel = self.query_one("#gradient-panel", GradientPanel)
@@ -182,12 +195,7 @@ class ForgeworkLightsTUI(App):
         """Handle footer control clicks"""
         if message.action_id == "quit":
             self.exit()
-        elif message.action_id == "logs":
-            self.action_view_logs()
     
-    def action_view_logs(self) -> None:
-        """Show logs modal"""
-        self.push_screen(LogsModal())
     
     def on_brightness_panel_brightness_changed(self, message: BrightnessPanel.BrightnessChanged) -> None:
         """Handle brightness slider clicks"""
@@ -361,25 +369,25 @@ class ForgeworkLightsTUI(App):
             # Watch Omarchy theme directory
             omarchy_dir = THEME_SYMLINK.parent
             if omarchy_dir.exists():
-                os.inotify_add_watch(
+                self.omarchy_wd = os.inotify_add_watch(
                     self.inotify_fd,
                     str(omarchy_dir),
                     os.IN_ATTRIB | os.IN_CLOSE_WRITE | os.IN_MOVE_SELF | os.IN_DELETE_SELF | 
                     os.IN_CREATE | os.IN_DELETE | os.IN_MOVED_TO | os.IN_MOVED_FROM
                 )
-                print(f"Started inotify watcher on {omarchy_dir}", file=sys.stderr)
+                print(f"Started inotify watcher on {omarchy_dir} (wd={self.omarchy_wd})", file=sys.stderr)
             
             # Watch omarchy-argb config directory
             config_dir = LED_THEME_FILE.parent
             if config_dir.exists():
                 config_dir.mkdir(parents=True, exist_ok=True)
-                os.inotify_add_watch(
+                self.config_wd = os.inotify_add_watch(
                     self.inotify_fd,
                     str(config_dir),
                     os.IN_ATTRIB | os.IN_CLOSE_WRITE | os.IN_MOVE_SELF | os.IN_DELETE_SELF | 
                     os.IN_CREATE | os.IN_DELETE | os.IN_MOVED_TO | os.IN_MOVED_FROM
                 )
-                print(f"Started inotify watcher on {config_dir}", file=sys.stderr)
+                print(f"Started inotify watcher on {config_dir} (wd={self.config_wd})", file=sys.stderr)
             
             # Initialize current theme
             if THEME_SYMLINK.exists() and THEME_SYMLINK.is_symlink():
@@ -423,21 +431,25 @@ class ForgeworkLightsTUI(App):
                     offset += name_len
                     
                     # Debug logging
-                    print(f"inotify event: {name} (mask: {mask})", file=sys.stderr)
+                    print(f"inotify event: wd={wd}, name='{name}', mask={mask}", file=sys.stderr)
                     
-                    # Handle different file changes
-                    if name == "theme" or "theme" in name:
-                        print(f"Detected Omarchy theme change: {name}", file=sys.stderr)
+                    # Handle different file changes based on watch descriptor
+                    if wd == self.omarchy_wd:
+                        # Event from Omarchy theme directory - check for any event
+                        # The handler will verify if theme actually changed
+                        print(f"Event in Omarchy directory: '{name}' - checking for theme change", file=sys.stderr)
                         self.call_from_thread(self._on_omarchy_theme_changed)
-                    elif name == LED_THEME_FILE.name:
-                        print(f"Detected led-theme change", file=sys.stderr)
-                        self.call_from_thread(self.refresh_status)
-                    elif name == BRIGHTNESS_FILE.name:
-                        print(f"Detected brightness change", file=sys.stderr)
-                        self.call_from_thread(self._on_brightness_changed)
-                    elif name == THEMES_DB_PATH.name:
-                        print(f"Detected themes.json change", file=sys.stderr)
-                        self.call_from_thread(self._on_themes_db_changed)
+                    elif wd == self.config_wd:
+                        # Event from config directory
+                        if name == LED_THEME_FILE.name:
+                            print(f"Detected led-theme change", file=sys.stderr)
+                            self.call_from_thread(self.refresh_status)
+                        elif name == BRIGHTNESS_FILE.name:
+                            print(f"Detected brightness change", file=sys.stderr)
+                            self.call_from_thread(self._on_brightness_changed)
+                        elif name == THEMES_DB_PATH.name:
+                            print(f"Detected themes.json change", file=sys.stderr)
+                            self.call_from_thread(self._on_themes_db_changed)
                 
             except OSError:
                 # FD was closed, exit gracefully
@@ -452,23 +464,31 @@ class ForgeworkLightsTUI(App):
     def _on_omarchy_theme_changed(self):
         """Handle Omarchy theme change event (from inotify)"""
         try:
-            # Get new theme FIRST before checking anything
-            if THEME_SYMLINK.exists() and THEME_SYMLINK.is_symlink():
-                current_theme_dir = THEME_SYMLINK.resolve()
-                current_theme = current_theme_dir.name
-            else:
-                return
+            print(f"[TUI] _on_omarchy_theme_changed() called", file=sys.stderr)
             
-            # Check if it actually changed
-            if self.last_omarchy_theme == current_theme:
-                return  # No change
+            # Small delay to ensure filesystem has settled
+            import time
+            time.sleep(0.1)
+            
+            # Get new theme FIRST before checking anything
+            # Force re-read by not using cached resolution
+            if THEME_SYMLINK.exists() and THEME_SYMLINK.is_symlink():
+                current_theme_dir = THEME_SYMLINK.resolve(strict=False)
+                current_theme = current_theme_dir.name
+                print(f"[TUI] Current theme resolved: {current_theme}", file=sys.stderr)
+            else:
+                print(f"[TUI] Theme symlink does not exist or is not a symlink", file=sys.stderr)
+                # Still refresh in case it was deleted
+                self.refresh_status()
+                return
             
             print(f"[TUI] Omarchy theme changed: {self.last_omarchy_theme} -> {current_theme}", file=sys.stderr)
             self.last_omarchy_theme = current_theme
             
             # Daemon will detect theme change via inotify and reload colors automatically
             
-            # Always refresh status display to show new theme name
+            # Refresh status to update both status panel and gradient panel
+            print(f"[TUI] Calling refresh_status() after theme change", file=sys.stderr)
             self.refresh_status()
         
         except Exception as e:

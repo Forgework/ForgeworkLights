@@ -21,7 +21,7 @@
 #include <cmath>
 #include <memory>
 
-namespace omarchy {
+namespace forgeworklights {
 
 ARGBDaemon::ARGBDaemon(const Config& cfg, bool safety_enabled) 
   : cfg_(cfg), safety_enabled_(safety_enabled) {}
@@ -114,7 +114,12 @@ int ARGBDaemon::run() {
       // Match Omarchy theme via symlink
       theme = resolve_theme();
       if (!theme) { log("resolve_theme: none"); return; }
+      
+      // Extract and log theme name
+      std::string theme_name = std::filesystem::path(theme->theme_dir).filename().string();
+      log(std::string("🎨 Omarchy theme detected: ") + theme_name);
       log(std::string("theme dir: ") + theme->theme_dir);
+      
       // Always watch the theme directory for any palette source changes
       palette_dir = theme->theme_dir;
       if (wd_palette_dir >= 0) { inotify_rm_watch(fd, wd_palette_dir); wd_palette_dir = -1; }
@@ -438,7 +443,6 @@ int ARGBDaemon::run() {
   for(;;){
     bool animation_changed = false;
     bool theme_changed = false;
-    bool omarchy_theme_changed = false;
 
     ssize_t n = read(fd, buf, sizeof(buf));
     if (n > 0) {
@@ -447,8 +451,9 @@ int ARGBDaemon::run() {
         struct inotify_event* ev = reinterpret_cast<struct inotify_event*>(buf + i);
         if (ev->wd == wd_current) {
           if (ev->len > 0 && std::string(ev->name) == "theme") {
-            log("event: theme symlink changed");
-            omarchy_theme_changed = true;
+            log("═══════════════════════════════════════════════════");
+            log("🔄 EVENT: Omarchy theme symlink changed!");
+            log("═══════════════════════════════════════════════════");
             theme_changed = true;
           }
         } else if (ev->wd == wd_palette_dir) {
@@ -495,24 +500,32 @@ int ARGBDaemon::run() {
       }
     }
 
-    // If Omarchy theme changed and we're in "match" mode, sync themes and reload database
-    if (omarchy_theme_changed && read_led_theme_preference() == "match") {
-      log("Omarchy theme changed in match mode - syncing themes from Omarchy directory");
-      int sync_rc = std::system("python3 /usr/local/bin/omarchy-argb-sync-themes 2>/dev/null");
-      if (sync_rc == 0) {
-        log("theme sync completed");
-        reload_theme_database();
-      } else {
-        log("theme sync failed or no changes");
-      }
-    }
-
     if (theme_changed) {
       load_theme();
+      
+      // Log theme colors from database if available
+      if (theme) {
+        std::string theme_name = std::filesystem::path(theme->theme_dir).filename().string();
+        auto db_colors = theme_db.get(theme_name);
+        if (db_colors && db_colors->colors.size() >= 3) {
+          std::string color_list;
+          for (size_t i = 0; i < db_colors->colors.size(); ++i) {
+            char buf[8];
+            std::snprintf(buf, sizeof(buf), "#%02X%02X%02X", 
+                         db_colors->colors[i].r, db_colors->colors[i].g, db_colors->colors[i].b);
+            color_list += buf;
+            if (i < db_colors->colors.size() - 1) color_list += " → ";
+          }
+          log(std::string("✨ Theme colors: ") + color_list);
+        }
+      }
+      
       // Recreate animation with new theme colors
       current_animation = read_animation_preference();
       animation = create_animation(current_animation);
-      log(std::string("Recreated animation with new theme: ") + current_animation);
+      log("─────────────────────────────────────────────────────");
+      log(std::string("✅ LED theme applied with animation: ") + current_animation);
+      log("─────────────────────────────────────────────────────");
     }
     
     if (animation_changed) {

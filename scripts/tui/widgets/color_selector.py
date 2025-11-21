@@ -8,6 +8,9 @@ from textual.app import ComposeResult
 from textual.message import Message
 from textual import events
 import colorsys
+import sys
+import traceback
+from .slider import Slider
 
 
 class ColorSelector(Static):
@@ -38,9 +41,21 @@ class ColorSelector(Static):
     
     def compose(self) -> ComposeResult:
         """Compose the color selector display"""
-        with Horizontal():
+        with Horizontal(id="color-selector-main"):
             yield Static("", id="color-grid")
-            yield Static("", id="color-info")
+            with Vertical(id="color-info"):
+                yield Static("", id="color-preview")
+                yield Static("", id="hex-display")
+                # RGB Sliders
+                yield Slider(min_value=0, max_value=255, label="R", color="red", width=15, id="slider-r")
+                yield Slider(min_value=0, max_value=255, label="G", color="green", width=15, id="slider-g")
+                yield Slider(min_value=0, max_value=255, label="B", color="blue", width=15, id="slider-b")
+                yield Static("", id="spacer1")
+                # HSV Sliders
+                yield Slider(min_value=0, max_value=360, label="H", suffix="°", color="cyan", width=15, id="slider-h")
+                yield Slider(min_value=0, max_value=100, label="S", suffix="%", color="cyan", width=15, id="slider-s")
+                yield Slider(min_value=0, max_value=100, label="V", suffix="%", color="cyan", width=15, id="slider-v")
+                yield Static("[dim]↑↓←→ keys[/]", id="hint-text")
     
     def on_mount(self) -> None:
         """Initialize the color selector"""
@@ -110,31 +125,23 @@ class ColorSelector(Static):
         s_pct = int(s * 100)
         v_pct = int(v * 100)
         
-        # Create vertical info display with shorthand labels
-        info_lines = [
-            f"[{hex_color}]█████[/]",
-            "",
-            f"HEX:",
-            f"{hex_color}",
-            "",
-            f"RGB:",
-            f"R:{r}",
-            f"G:{g}",
-            f"B:{b}",
-            "",
-            f"HSV:",
-            f"H:{h_deg}°",
-            f"S:{s_pct}%",
-            f"V:{v_pct}%",
-            "",
-            "[dim]Click or[/]",
-            "[dim]use ↑↓←→[/]",
-            "[dim]to select[/]",
-        ]
-        info_text = "\n".join(info_lines)
+        # Update color preview block
+        preview = self.query_one("#color-preview", Static)
+        preview.update(f"[{hex_color}]█████[/]")
         
-        info = self.query_one("#color-info", Static)
-        info.update(info_text)
+        # Update hex display
+        hex_display = self.query_one("#hex-display", Static)
+        hex_display.update(f"HEX:{hex_color}")
+        
+        # Update RGB sliders
+        self.query_one("#slider-r", Slider).value = r
+        self.query_one("#slider-g", Slider).value = g
+        self.query_one("#slider-b", Slider).value = b
+        
+        # Update HSV sliders
+        self.query_one("#slider-h", Slider).value = h_deg
+        self.query_one("#slider-s", Slider).value = s_pct
+        self.query_one("#slider-v", Slider).value = v_pct
     
     def _calculate_color_at_cursor(self) -> tuple:
         """Calculate RGB color at current cursor position"""
@@ -250,3 +257,60 @@ class ColorSelector(Static):
             self._update_display()
         except ValueError:
             pass
+    
+    def on_slider_value_changed(self, message: Slider.ValueChanged) -> None:
+        """Handle slider value changes"""
+        try:
+            # The control property contains the widget that sent the message
+            if not hasattr(message, 'control') or not message.control:
+                return
+            
+            slider = message.control
+            
+            # Get current RGB values
+            r, g, b = self.selected_color
+            
+            # Update based on which slider changed
+            if slider.id == "slider-r":
+                r = message.value
+            elif slider.id == "slider-g":
+                g = message.value
+            elif slider.id == "slider-b":
+                b = message.value
+            elif slider.id in ["slider-h", "slider-s", "slider-v"]:
+                # For HSV sliders, get all HSV values and convert to RGB
+                h_deg = self.query_one("#slider-h", Slider).value
+                s_pct = self.query_one("#slider-s", Slider).value
+                v_pct = self.query_one("#slider-v", Slider).value
+                
+                # Convert to 0-1 range
+                h = h_deg / 360.0
+                s = s_pct / 100.0
+                v = v_pct / 100.0
+                
+                # Convert HSV to RGB
+                r_f, g_f, b_f = colorsys.hsv_to_rgb(h, s, v)
+                r = int(r_f * 255)
+                g = int(g_f * 255)
+                b = int(b_f * 255)
+            
+            # Update color
+            self.selected_color = (r, g, b)
+            
+            # Update cursor position based on new RGB
+            h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
+            self.cursor_x = h
+            
+            # Reverse gradient calculation for cursor_y
+            if v < 0.99:
+                self.cursor_y = v / 2.0
+            elif s < 0.99:
+                self.cursor_y = 1.0 - (s / 2.0)
+            else:
+                self.cursor_y = 0.5
+            
+            self._update_display()
+            self._emit_color_selected()
+        except Exception as e:
+            print(f"Slider value change error: {e}", file=sys.stderr)
+            traceback.print_exc()

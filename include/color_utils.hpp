@@ -2,7 +2,7 @@
 #include <vector>
 #include "color.hpp"
 
-namespace omarchy {
+namespace forgeworklights {
 
 struct Gamma {
   uint8_t table[256];

@@ -7,7 +7,7 @@
 
 namespace fs = std::filesystem;
 
-namespace omarchy {
+namespace forgeworklights {
 
 static std::string config_base() {
   const char* xdg = std::getenv("XDG_CONFIG_HOME");

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 
-namespace omarchy {
+namespace forgeworklights {
 
 // Fixed hardware limits for Framework JARGB1 header
 static constexpr float HARD_RAIL_LIMIT_AMPS = 2.4f;      // 5V rail max safe draw

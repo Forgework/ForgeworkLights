@@ -77,7 +77,7 @@ class ControlFooterBorder(Static):
         super().__init__()
         self.hovered_item = None
         self.focused_index = 0
-        self.controls = ["quit", "logs"]
+        self.controls = ["quit"]
         self.can_focus = True
     
     def render(self) -> str:
@@ -93,19 +93,14 @@ class ControlFooterBorder(Static):
         if self.hovered_item == "quit" or focused_control == "quit":
             quit = "[bold yellow][Ctrl+Q] Quit[/]"
         
-        logs = "[L] Logs"
-        if self.hovered_item == "logs" or focused_control == "logs":
-            logs = "[bold yellow][L] Logs[/]"
-        
-        controls = f" {quit}  {logs} "
+        controls = f" {quit} "
         
         # Calculate exact visible width:
-        # space(1) + [Ctrl+Q] Quit(13) + spaces(2) + [L] Logs(8) + space(1)
-        # Total visible: 1 + 13 + 2 + 8 + 1 = 25
+        # space(1) + [Ctrl+Q] Quit(13) + space(1) = 15
         
-        # Total: ╰(1) + left_pad + ┤(1) + space(1) + [Ctrl+Q] Quit(13) + spaces(2) + [L] Logs(8) + space(1) + ├(1) + ─(1) + ╯(1)
-        # = 1 + left_pad + 1 + 1 + 13 + 2 + 8 + 1 + 1 + 1 + 1 = left_pad + 30 = width
-        left_pad = max(1, width - 29)
+        # Total: ╰(1) + left_pad + ┤(1) + controls(15) + ├(1) + ─(1) + ╯(1)
+        # = left_pad + 20 = width
+        left_pad = max(1, width - 20)
         
         return f"[cyan]╰{'─' * left_pad}┤{controls}├─╯[/]"
     
@@ -114,10 +109,9 @@ class ControlFooterBorder(Static):
         width = self.size.width if self.size.width > 0 else 70
         
         # Calculate control positions from the left edge
-        # Layout: ╰───...───┤ [Ctrl+Q] Quit  [L] Logs ├─╯
-        #         0         left_pad+1 (┤) +2 (space) +3 (start of text)
+        # Layout: ╰───...───┤ [Ctrl+Q] Quit ├─╯
         
-        left_pad = max(1, width - 29)
+        left_pad = max(1, width - 20)
         # Position after: ╰ (1) + dashes (left_pad) + ┤ (1) + space (1)
         controls_start = left_pad + 3
         
@@ -125,33 +119,23 @@ class ControlFooterBorder(Static):
         quit_start = controls_start
         quit_end = quit_start + 13
         
-        # 2 spaces, then [L] Logs = 8 chars
-        logs_start = quit_end + 2
-        logs_end = logs_start + 8
-        
         if quit_start <= x < quit_end:
             self.post_message(self.ControlClicked("quit"))
-        elif logs_start <= x < logs_end:
-            self.post_message(self.ControlClicked("logs"))
     
     def on_mouse_move(self, event) -> None:
         x = event.x
         width = self.size.width if self.size.width > 0 else 70
         
         # Use same position calculation as click
-        left_pad = max(1, width - 29)
+        left_pad = max(1, width - 20)
         controls_start = left_pad + 3
         
         quit_start = controls_start
         quit_end = quit_start + 13
-        logs_start = quit_end + 2
-        logs_end = logs_start + 8
         
         old = self.hovered_item
         if quit_start <= x < quit_end:
             self.hovered_item = "quit"
-        elif logs_start <= x < logs_end:
-            self.hovered_item = "logs"
         else:
             self.hovered_item = None
         

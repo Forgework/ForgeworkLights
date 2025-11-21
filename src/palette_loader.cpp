@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <filesystem>
 
-namespace omarchy {
+namespace forgeworklights {
 
 static std::string slurp(const std::string& path) {
   std::ifstream in(path);

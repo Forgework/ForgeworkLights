@@ -6,7 +6,7 @@
 
 namespace fs = std::filesystem;
 
-namespace omarchy {
+namespace forgeworklights {
 
 static std::string home() {
   const char* h = std::getenv("HOME");

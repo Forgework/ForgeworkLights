@@ -6,7 +6,7 @@
 #include <sys/wait.h>
 #include <vector>
 
-namespace omarchy {
+namespace forgeworklights {
 
 // Path to the root helper binary
 static constexpr const char* ROOT_HELPER = "/usr/local/libexec/fw_root_helper";

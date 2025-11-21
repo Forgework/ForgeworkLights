@@ -1,7 +1,7 @@
 #pragma once
 #include "config.hpp"
 
-namespace omarchy {
+namespace forgeworklights {
 
 class ARGBDaemon {
 public:

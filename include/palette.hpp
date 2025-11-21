@@ -1,7 +1,7 @@
 #pragma once
 #include "color.hpp"
 
-namespace omarchy {
+namespace forgeworklights {
 
 struct Palette {
   RGB accent;     // btop temp_start

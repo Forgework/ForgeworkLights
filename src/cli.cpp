@@ -9,7 +9,7 @@
 #include <fstream>
 #include <cstring>
 
-namespace omarchy { namespace cli {
+namespace forgeworklights { namespace cli {
 
 static int usage() {
   std::cout << "Usage: omarchy-argb <once|daemon|brightness> [--safety=on|off]\n";
@@ -42,14 +42,14 @@ int run(int argc, char** argv) {
   std::string cmd = argv[1];
   if (cmd == "once") {
     bool safety_enabled = parse_safety_flag(argc, argv);
-    omarchy::Config cfg;
+    forgeworklights::Config cfg;
     cfg.load_from_default();
-    omarchy::FrameworkTool tool(cfg.tool_path);
-    omarchy::Gamma gamma(cfg.gamma_exponent);
-    std::vector<omarchy::RGB> leds;
+    forgeworklights::FrameworkTool tool(cfg.tool_path);
+    forgeworklights::Gamma gamma(cfg.gamma_exponent);
+    std::vector<forgeworklights::RGB> leds;
     leds.reserve(cfg.led_count);
     for (int i = 0; i < cfg.led_count; ++i) {
-      omarchy::RGB c{0, 0, 0};
+      forgeworklights::RGB c{0, 0, 0};
       c.g = static_cast<uint8_t>(10 + (i * 245) / (cfg.led_count ? cfg.led_count : 1));
       c.r = static_cast<uint8_t>((i * 200) / (cfg.led_count ? cfg.led_count : 1));
       c.b = static_cast<uint8_t>(255 - c.r);
@@ -60,9 +60,9 @@ int run(int argc, char** argv) {
     return ok ? 0 : 2;
   } else if (cmd == "daemon") {
     bool safety_enabled = parse_safety_flag(argc, argv);
-    omarchy::Config cfg;
+    forgeworklights::Config cfg;
     cfg.load_from_default();
-    omarchy::ARGBDaemon d(cfg, safety_enabled);
+    forgeworklights::ARGBDaemon d(cfg, safety_enabled);
     return d.run();
   } else if (cmd == "brightness") {
     if (argc < 3) return usage();

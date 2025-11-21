@@ -5,12 +5,12 @@ from .borders import BorderTop, BorderMiddle, Spacer, Filler, ControlFooterBorde
 from .status import StatusPanel
 from .gradient import GradientPanel
 from .brightness import BrightnessPanel
-from .logs import LogsModal, LogsContent
 from .theme_creator import ThemeCreator
 from .color_selector import ColorSelector
 from .animations import AnimationsPanel
 from .parameter_slider import ParameterSlider
 from .countdown_bar import CountdownBar
+from .slider import Slider
 
 __all__ = [
     "BorderTop",
@@ -21,11 +21,10 @@ __all__ = [
     "StatusPanel",
     "GradientPanel",
     "BrightnessPanel",
-    "LogsModal",
-    "LogsContent",
     "ThemeCreator",
     "ColorSelector",
     "AnimationsPanel",
     "ParameterSlider",
     "CountdownBar",
+    "Slider",
 ]

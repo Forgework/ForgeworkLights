@@ -2,7 +2,7 @@
 #include <string>
 #include "framework_tool.hpp"
 
-namespace omarchy {
+namespace forgeworklights {
 
 struct Config {
   int led_count = 22;

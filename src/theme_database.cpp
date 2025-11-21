@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cstring>
 
-namespace omarchy {
+namespace forgeworklights {
 
 // Simple JSON parsing for our specific format
 static std::string trim(const std::string& str) {
@@ -162,4 +162,4 @@ std::vector<std::string> ThemeDatabase::list_themes() const {
   return names;
 }
 
-} // namespace omarchy
+} // namespace forgeworklights
