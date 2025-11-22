@@ -5,7 +5,7 @@ max_brightness = 0.7
 # 0.45 (default): Degamma sRGB → linear RGB (recommended for most LEDs)
 # 1.0: No gamma correction (passthrough)
 # 2.2: Gamma encoding (inverse of default, makes colors darker)
-gamma_exponent = 0.45
+gamma_exponent = 1.33
 
 color_order = "RGB"
 tool_path = "/usr/bin/framework_tool"
