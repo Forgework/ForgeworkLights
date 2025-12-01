@@ -183,15 +183,30 @@ int ARGBDaemon::run() {
     log("theme sync failed or no changes");
   }
 
-  // Load theme database
+  // Load theme database (LED gradients)
   ThemeDatabase theme_db;
   const char* home = std::getenv("HOME");
-  std::string db_path = std::string(home ? home : "/") + "/.config/forgeworklights/themes.json";
+  std::string db_path = std::string(home ? home : "/") + "/.config/forgeworklights/led_themes.json";
   std::string db_dir;
+
+  // Try user-led_themes.json first, then legacy themes.json, then system-wide copies
   if (!theme_db.load(db_path)) {
-    // Try system-wide location
-    db_path = "/usr/local/share/forgeworklights/themes.json";
-    theme_db.load(db_path);
+    // Legacy user path
+    std::string legacy_user = std::string(home ? home : "/") + "/.config/forgeworklights/themes.json";
+    if (theme_db.load(legacy_user)) {
+      db_path = legacy_user;
+    } else {
+      // New system-wide path
+      std::string system_new = "/usr/local/share/forgeworklights/led_themes.json";
+      if (theme_db.load(system_new)) {
+        db_path = system_new;
+      } else {
+        // Legacy system-wide path
+        std::string system_legacy = "/usr/local/share/forgeworklights/themes.json";
+        theme_db.load(system_legacy);
+        db_path = system_legacy;
+      }
+    }
   }
   
   // Watch the themes database directory for changes
@@ -479,8 +494,8 @@ int ARGBDaemon::run() {
             } else if (nm == "animation-params.json") {
               log("event: animation parameters changed");
               animation_changed = true;
-            } else if (nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
-              log("event: themes database changed");
+            } else if (nm == "led_themes.json" || nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
+              log("event: LED themes database changed");
               reload_theme_database();
               theme_changed = true;
             }
@@ -489,8 +504,8 @@ int ARGBDaemon::run() {
           if (ev->len > 0) {
             std::string nm(ev->name);
             log(std::string("event in themes db dir: ") + nm);
-            if (nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
-              log("event: themes database changed");
+            if (nm == "led_themes.json" || nm == "themes.json" || nm.find("themes.json") != std::string::npos) {
+              log("event: LED themes database changed");
               reload_theme_database();
               theme_changed = true;
             }

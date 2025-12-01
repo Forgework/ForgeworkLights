@@ -1,7 +1,7 @@
 """
 Color Selector - A visual color picker widget for Textual TUI
 """
-from textual.widgets import Static
+from textual.widgets import Static, Input
 from textual.containers import Vertical, Horizontal
 from textual.reactive import reactive
 from textual.app import ComposeResult
@@ -9,6 +9,9 @@ from textual.message import Message
 from textual import events
 import colorsys
 from .slider import Slider
+from .theme_button import ThemeButton
+from .countdown_bar import CountdownBar
+from ..theme import THEME
 
 
 class ColorSelector(Static):
@@ -42,18 +45,76 @@ class ColorSelector(Static):
         with Horizontal(id="color-selector-main"):
             yield Static("", id="color-grid")
             with Vertical(id="color-info"):
-                yield Static("", id="color-preview")
-                yield Static("", id="hex-display")
-                # RGB Sliders
-                yield Slider(min_value=0, max_value=255, label="R", color="red", width=15, id="slider-r")
-                yield Slider(min_value=0, max_value=255, label="G", color="green", width=15, id="slider-g")
-                yield Slider(min_value=0, max_value=255, label="B", color="blue", width=15, id="slider-b")
-                yield Static("", id="spacer1")
-                # HSV Sliders
-                yield Slider(min_value=0, max_value=360, label="H", suffix="°", color="cyan", width=15, id="slider-h")
-                yield Slider(min_value=0, max_value=100, label="S", suffix="%", color="cyan", width=15, id="slider-s")
-                yield Slider(min_value=0, max_value=100, label="V", suffix="%", color="cyan", width=15, id="slider-v")
-                yield Static("[dim]↑↓←→ arrows, r/g/b/h/s/v keys (shift=decrease)[/]", id="hint-text")
+                # Embedded theme creator controls (name, hex inputs, buttons only)
+                with Vertical(id="theme-controls"):
+                    # Theme name input
+                    with Horizontal(classes="compact-row"):
+                        yield Input(placeholder="Theme Name", id="theme-name-input", classes="name-input")
+
+                    # Color hex inputs in a single row directly under the name
+                    with Horizontal(classes="compact-row"):
+                        yield Input(placeholder="#ffbe0b", id="color1-input", classes="color-input", max_length=7)
+                        yield Input(placeholder="#ff006e", id="color2-input", classes="color-input", max_length=7)
+                        yield Input(placeholder="#3a0ca3", id="color3-input", classes="color-input", max_length=7)
+
+                    # Action buttons directly under the hex inputs
+                    with Horizontal(id="button-row"):
+                        yield ThemeButton("Preview", "preview", "P", id="preview-button")
+                        yield ThemeButton("Save", "save", "S", id="save-button")
+                        yield ThemeButton("Clear", "clear", "C", id="clear-button")
+
+                # Custom theme gradient preview and countdown (for save/preview)
+                yield Static("", id="gradient-preview", classes="preview-centered")
+                # Explicit spacer line under the gradient preview (can be hidden during preview)
+                yield Static("", id="gradient-spacer")
+                yield CountdownBar(width=42, color=THEME['button_fg'], id="preview-countdown")
+
+                # Selected color preview and hex display stacked on a single line
+                with Horizontal(classes="compact-row"):
+                    yield Static("", id="color-preview")
+                    yield Static("", id="hex-display")
+
+                # RGB Sliders (extended length for finer control, step size = 1)
+                yield Slider(min_value=0, max_value=255, label="R", color="red", width=30, step_size=1, id="slider-r")
+                yield Slider(min_value=0, max_value=255, label="G", color="green", width=30, step_size=1, id="slider-g")
+                yield Slider(min_value=0, max_value=255, label="B", color="blue", width=30, step_size=1, id="slider-b")
+
+                # HSV Sliders (extended length for finer control, themed colors, step size = 1)
+                yield Slider(
+                    min_value=0,
+                    max_value=360,
+                    label="H",
+                    suffix="°",
+                    color=THEME["button_fg"],
+                    width=30,
+                    step_size=1,
+                    label_color=THEME["main_fg"],
+                    arrows_color=THEME["hi_fg"],
+                    id="slider-h",
+                )
+                yield Slider(
+                    min_value=0,
+                    max_value=100,
+                    label="S",
+                    suffix="%",
+                    color=THEME["button_fg"],
+                    width=30,
+                    label_color=THEME["main_fg"],
+                    arrows_color=THEME["hi_fg"],
+                    id="slider-s",
+                )
+                yield Slider(
+                    min_value=0,
+                    max_value=100,
+                    label="V",
+                    suffix="%",
+                    color=THEME["button_fg"],
+                    width=30,
+                    step_size=1,
+                    label_color=THEME["main_fg"],
+                    arrows_color=THEME["hi_fg"],
+                    id="slider-v",
+                )
     
     def on_mount(self) -> None:
         """Initialize the color selector"""
@@ -217,14 +278,14 @@ class ColorSelector(Static):
     
     def on_key(self, event: events.Key) -> None:
         """Handle keyboard navigation and color adjustments"""
-        # Handle RGB/HSV slider shortcuts
+        # Handle RGB/HSV slider shortcuts (step size = 1 for all)
         slider_keys = {
-            'r': ('slider-r', 5, False), 'R': ('slider-r', 5, True),
-            'g': ('slider-g', 5, False), 'G': ('slider-g', 5, True),
-            'b': ('slider-b', 5, False), 'B': ('slider-b', 5, True),
-            'h': ('slider-h', 10, False), 'H': ('slider-h', 10, True),
-            's': ('slider-s', 5, False), 'S': ('slider-s', 5, True),
-            'v': ('slider-v', 5, False), 'V': ('slider-v', 5, True),
+            'r': ('slider-r', 1, False), 'R': ('slider-r', 1, True),
+            'g': ('slider-g', 1, False), 'G': ('slider-g', 1, True),
+            'b': ('slider-b', 1, False), 'B': ('slider-b', 1, True),
+            'h': ('slider-h', 1, False), 'H': ('slider-h', 1, True),
+            's': ('slider-s', 1, False), 'S': ('slider-s', 1, True),
+            'v': ('slider-v', 1, False), 'V': ('slider-v', 1, True),
         }
         
         if event.key in slider_keys:

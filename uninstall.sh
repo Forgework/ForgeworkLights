@@ -95,12 +95,41 @@ if command -v python3 &> /dev/null; then
         fi
     done
     
-    # Clean up Python cache directories
+    # Clean up Python cache directories comprehensively
     SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null)
     if [ -n "$SITE_PACKAGES" ]; then
-        # Remove tui-related __pycache__ directories
-        find "$SITE_PACKAGES" -type d -name "__pycache__" -path "*/tui/*" -exec sudo rm -rf {} + 2>/dev/null || true
+        # Remove tui-related __pycache__ directories and .pyc files
+        find "$SITE_PACKAGES" -type d -name "__pycache__" -path "*tui*" -exec sudo rm -rf {} + 2>/dev/null || true
+        find "$SITE_PACKAGES" -name "*.pyc" -path "*tui*" -delete 2>/dev/null || true
+        find "$SITE_PACKAGES" -name "*.pyo" -path "*tui*" -delete 2>/dev/null || true
+        
+        # Also clean any forgeworklights-related cache
+        find "$SITE_PACKAGES" -type d -name "__pycache__" -path "*forgeworklights*" -exec sudo rm -rf {} + 2>/dev/null || true
+        find "$SITE_PACKAGES" -name "*.pyc" -path "*forgeworklights*" -delete 2>/dev/null || true
+        find "$SITE_PACKAGES" -name "*.pyo" -path "*forgeworklights*" -delete 2>/dev/null || true
+        
         echo -e "${GREEN}✓${NC} Cleaned Python cache"
+    fi
+    
+    # Clean user-level Python cache
+    if [ -d ~/.cache ]; then
+        # Remove forgeworklights-related cache from user cache
+        find ~/.cache -type d -name "__pycache__" -path "*forgeworklights*" -exec rm -rf {} + 2>/dev/null || true
+        find ~/.cache -name "*.pyc" -path "*forgeworklights*" -delete 2>/dev/null || true
+        find ~/.cache -name "*.pyo" -path "*forgeworklights*" -delete 2>/dev/null || true
+        
+        # Remove any tui-related cache from user cache
+        find ~/.cache -type d -name "__pycache__" -path "*tui*" -exec rm -rf {} + 2>/dev/null || true
+        find ~/.cache -name "*.pyc" -path "*tui*" -delete 2>/dev/null || true
+        find ~/.cache -name "*.pyo" -path "*tui*" -delete 2>/dev/null || true
+        
+        echo -e "${GREEN}✓${NC} Cleaned user Python cache"
+    fi
+    
+    # Clean any remaining Python bytecode cache
+    if [ -d /tmp ]; then
+        find /tmp -name "*forgeworklights*" -type d -exec rm -rf {} + 2>/dev/null || true
+        find /tmp -name "*tui*" -type d -exec rm -rf {} + 2>/dev/null || true
     fi
 fi
 

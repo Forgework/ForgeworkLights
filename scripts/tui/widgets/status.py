@@ -5,6 +5,8 @@ from pathlib import Path
 from textual.widgets import Static
 from textual.reactive import reactive
 
+from ..theme import THEME
+
 # Import paths from constants
 THEME_SYMLINK = Path.home() / ".config/omarchy/current/theme"
 LED_THEME_FILE = Path.home() / ".config/forgeworklights/led-theme"
@@ -56,14 +58,22 @@ class StatusPanel(Static):
             # Use specific LED theme name
             theme_display = led_theme.capitalize()
         
-        # Format status lines
+        # Format status lines (brightness is shown via dedicated slider widget)
+        hint_text = " TAB to switch sections (shift=reverse)"
         daemon_text = f"Daemon: {self.daemon_status}"
         theme_text = f"Theme: {theme_display}"
-        brightness_text = f"Brightness: {self.brightness_value}%"
         
-        # Pad each line to content width
-        daemon_line = f"│ {daemon_text:<{content_width-1}}│"
-        theme_line = f"│ {theme_text:<{content_width-1}}│"
-        brightness_line = f"│ {brightness_text:<{content_width-1}}│"
-        
-        return f"[cyan]{daemon_line}[/]\n[cyan]{theme_line}[/]\n[cyan]{brightness_line}[/]"
+        border_color = THEME["box_outline"]
+        text_color = THEME["main_fg"]
+
+        # Hint line matches other hints: dimmed text with themed borders, padded to full width
+        hint_body = f"{hint_text:<{content_width}}"
+        hint_line = f"[{border_color}]│[/][dim]{hint_body}[/][{border_color}]│[/]"
+
+        # Status lines use main_fg with themed borders, indented by 3 spaces
+        daemon_body = f"   {daemon_text:<{content_width-3}}"
+        theme_body = f"   {theme_text:<{content_width-3}}"
+        daemon_line = f"[{border_color}]│[/][{text_color}]{daemon_body}[/][{border_color}]│[/]"
+        theme_line = f"[{border_color}]│[/][{text_color}]{theme_body}[/][{border_color}]│[/]"
+
+        return f"{hint_line}\n{daemon_line}\n{theme_line}"

@@ -1,5 +1,5 @@
 """
-Gradient panel widget for ForgeworkLights TUI
+Theme selection panel widget for ForgeworkLights TUI
 """
 import json
 import re
@@ -14,7 +14,7 @@ from ..constants import THEMES_DB_PATH, THEME_SYMLINK, LED_THEME_FILE
 from ..theme import THEME
 
 
-class GradientPanel(ScrollableContainer):
+class ThemeSelectionPanel(ScrollableContainer):
     """Display all themes with their gradients and key colors - interactive selection"""
     
     class ThemeSelected(Message):
@@ -52,6 +52,8 @@ class GradientPanel(ScrollableContainer):
     BINDINGS = [
         ("up", "select_previous", "Previous theme"),
         ("down", "select_next", "Next theme"),
+        ("left", "move_left", "Move to previous element"),
+        ("right", "move_right", "Move to next element"),
         ("enter", "apply_theme", "Apply theme"),
         ("e", "edit_theme", "Edit theme"),
         ("d", "delete_theme", "Delete theme"),
@@ -59,7 +61,7 @@ class GradientPanel(ScrollableContainer):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._content = Static("", id="gradient-content")
+        self._content = Static("", id="theme-selection-content")
         self._content.can_focus = False  # Prevent inner widget from stealing focus
         self._theme_list = []  # Store theme keys for navigation
         self.can_focus = True
@@ -100,10 +102,12 @@ class GradientPanel(ScrollableContainer):
         
         try:
             # Add instruction line at top (below Theme Selection border)
-            instruction = "[dim]↑↓ navigate, Enter apply, E edit, D delete[/]"
-            clean_instruction = re.sub(r'\[.*?\]', '', instruction)
-            padding = max(1, width - len(clean_instruction) - 2)  # -2 for borders
-            lines.append(f"[{THEME['box_outline']}]│{instruction}{' ' * padding}│[/]")
+            # Match StatusPanel hint style: dimmed text with themed borders.
+            instruction_text = " ↑↓←→ navigate, Enter select, E edit, D delete"
+            inner_width = width - 2  # characters between the two borders
+            instr_body = f"{instruction_text:<{inner_width}}"
+            instr_line = f"[{THEME['box_outline']}]│[/][dim]{instr_body}[/][{THEME['box_outline']}]│[/]"
+            lines.append(instr_line)
             
             # Add "Match Omarchy Theme" option at the top
             self._theme_list.append("__MATCH_OMARCHY__")
@@ -139,36 +143,34 @@ class GradientPanel(ScrollableContainer):
                         
                         if len(colors) >= 3:
                             self._theme_list.append(theme_key)
-                            
-                            # Extract key colors (first, middle, last)
-                            key_colors = [colors[0], colors[len(colors)//2], colors[-1]]
-                            
+
                             # Mark current LED theme (not Omarchy theme)
                             marker = "→" if theme_key == led_theme else " "
                             is_selected = self.selected_index == idx
-                            
-                            # Create mini gradient (shorter for list view)
-                            gradient_width = min(30, content_width - 40)
-                            gradient = self._create_gradient_preview(colors, gradient_width)
-                            
-                            # Format: "→ Theme Name    ▄▄▄▄▄    #hex1 #hex2 #hex3 ... ✎ 🗑│"
-                            hex_str = f"{key_colors[0]} {key_colors[1]} {key_colors[2]}"
+
+                            # Theme name column
                             name_padded = f"{theme_name[:18]:<18}"
                             
                             # Show confirmation message if this theme is pending deletion
                             # Note: 🗑 emoji and ✓ both take 2 char widths in most terminals, ✎ takes 1 char
                             if self.pending_delete_key == theme_key:
-                                icons = " ✎ ✓"  # space(1) + edit(1) + space(1) + check(2) = 5, need 1 more space before border
+                                icons = " ✎ ✓"  # space(1) + edit(1) + space(1) + check(2)
                                 icons_width = 5
                                 trailing_spaces = 1
                             else:
-                                icons = " ✎ 🗑"  # space(1) + edit(1) + space(1) + trash(2) = 5, need 1 more space before border
+                                icons = " ✎ 🗑"  # space(1) + edit(1) + space(1) + trash(2)
                                 icons_width = 5
                                 trailing_spaces = 1
-                            
-                            # Calculate visible content length (without Rich markup)
-                            # marker(1) + space(1) + name(18) + space(1) + gradient(width) + space(1) + hex_str(23) + icons(width) + trailing_spaces + borders(2)
-                            visible_len = 1 + 1 + 18 + 1 + gradient_width + 1 + 23 + icons_width + trailing_spaces + 2
+
+                            # Use remaining content width for the gradient preview, leaving room for name and icons
+                            # marker(1) + space(1) + name(18) + space(1) + gradient(width) + spaces + icons(width) + trailing_spaces + borders(2)
+                            # First, choose a tentative maximum for gradient width based on available content width
+                            max_gradient_width = max(10, content_width - (1 + 1 + 18 + 1 + icons_width + trailing_spaces + 4))
+                            gradient_width = max_gradient_width
+                            gradient = self._create_gradient_preview(colors, gradient_width)
+
+                            # Recompute visible length including borders so we can pad out to full panel width
+                            visible_len = 1 + 1 + 18 + 1 + gradient_width + icons_width + trailing_spaces + 2
                             padding_needed = max(1, width - visible_len)
                             
                             # Build line with selection highlight (only when focused)
@@ -176,25 +178,25 @@ class GradientPanel(ScrollableContainer):
                             if is_selected and show_highlight:
                                 if self.selected_element == "name":
                                     # Highlight theme name only
-                                    line = f"│ {marker} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]{name_padded}[/] {gradient} {hex_str}{' ' * padding_needed}{icons}{' ' * trailing_spaces}│"
+                                    line = f"│ {marker} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]{name_padded}[/] {gradient}{' ' * padding_needed}{icons}{' ' * trailing_spaces}│"
                                 elif self.selected_element == "edit":
                                     # Highlight edit icon with background (2 chars wide)
                                     if self.pending_delete_key == theme_key:
                                         # " ✎ ✓ " with edit highlighted (check is 2 chars wide)
-                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✎ [/]✓ │"
+                                        line = f"│ {marker} {name_padded} {gradient}{' ' * padding_needed} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✎ [/]✓ │"
                                     else:
                                         # " ✎ 🗑 " with edit highlighted
-                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✎ [/]🗑 │"
+                                        line = f"│ {marker} {name_padded} {gradient}{' ' * padding_needed} [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✎ [/]🗑 │"
                                 elif self.selected_element == "delete":
                                     # Highlight delete icon with background (2 chars wide)
                                     if self.pending_delete_key == theme_key:
                                         # " ✎ ✓ " with checkmark highlighted (check is 2 chars wide)
-                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} ✎ [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✓[/] │"
+                                        line = f"│ {marker} {name_padded} {gradient}{' ' * padding_needed} ✎ [bold {THEME['hi_fg']} on {THEME['selected_bg']}]✓[/] │"
                                     else:
                                         # " ✎ 🗑 " with trash highlighted (edit in normal color)
-                                        line = f"│ {marker} {name_padded} {gradient} {hex_str}{' ' * padding_needed} ✎ [bold {THEME['hi_fg']} on {THEME['selected_bg']}]🗑[/] │"
+                                        line = f"│ {marker} {name_padded} {gradient}{' ' * padding_needed} ✎ [bold {THEME['hi_fg']} on {THEME['selected_bg']}]🗑[/] │"
                             else:
-                                line = f"│ [{THEME['main_fg']}]{marker} {name_padded}[/] {gradient} {hex_str}{' ' * padding_needed}{icons}{' ' * trailing_spaces}│"
+                                line = f"│ [{THEME['main_fg']}]{marker} {name_padded}[/] {gradient}{' ' * padding_needed}{icons}{' ' * trailing_spaces}│"
                             
                             lines.append(f"[{THEME['box_outline']}]{line}[/]")
                     
@@ -258,93 +260,100 @@ class GradientPanel(ScrollableContainer):
         self.is_focused = False
     
     def action_select_previous(self) -> None:
-        """Select previous element (cycles through name, edit, delete for each theme)"""
+        """Move selection to the previous theme row (Up key)."""
         if not self._theme_list:
             return
-        
-        # Check if we're on the Sync button
-        if self.selected_index == len(self._theme_list):
-            # Go to last theme's delete icon
-            self.selected_index = len(self._theme_list) - 1
-            last_theme = self._theme_list[self.selected_index]
-            if last_theme == "__MATCH_OMARCHY__":
-                # Match Omarchy has no delete icon, stay on name
-                self.selected_element = "name"
-            else:
-                self.selected_element = "delete"
+
+        max_index = len(self._theme_list)  # Themes plus Sync row
+
+        if self.selected_index == 0:
+            # Wrap to Sync row at bottom
+            self.selected_index = max_index
+        else:
+            self.selected_index -= 1
+
+        self._normalize_selection_after_vertical_move()
+
+        # Clear pending deletion when moving to a different row
+        if self.selected_index >= len(self._theme_list) or (
+            self._theme_list[self.selected_index] != self.pending_delete_key
+        ):
             self.pending_delete_key = None
-            return
-        
-        # Navigate backwards through elements
-        if self.selected_element == "name":
-            # Move to previous theme's delete icon (or name if Match Omarchy)
-            if self.selected_index == 0:
-                # Wrap to Sync button
-                self.selected_index = len(self._theme_list)
-                self.selected_element = "name"
-            else:
-                self.selected_index -= 1
-                prev_theme = self._theme_list[self.selected_index]
-                if prev_theme == "__MATCH_OMARCHY__":
-                    # Match Omarchy has no delete icon, stay on name
-                    self.selected_element = "name"
-                else:
-                    self.selected_element = "delete"
-        elif self.selected_element == "edit":
-            # Move to same theme's name
-            self.selected_element = "name"
-        elif self.selected_element == "delete":
-            # Move to same theme's edit icon
-            self.selected_element = "edit"
-        
-        # Clear pending deletion when navigating away
-        if self.selected_index < len(self._theme_list) and self._theme_list[self.selected_index] != self.pending_delete_key:
-            self.pending_delete_key = None
-    
+
     def action_select_next(self) -> None:
-        """Select next element (cycles through name, edit, delete for each theme, then Sync button)"""
+        """Move selection to the next theme row (Down key)."""
         if not self._theme_list:
             return
-        
-        # Check if we're on the Sync button
-        if self.selected_index == len(self._theme_list):
-            # Wrap around to first theme
+
+        max_index = len(self._theme_list)  # Themes plus Sync row
+
+        if self.selected_index >= max_index:
+            # From Sync, wrap to first theme
             self.selected_index = 0
-            self.selected_element = "name"
+        else:
+            self.selected_index += 1
+            if self.selected_index > max_index:
+                self.selected_index = 0
+
+        self._normalize_selection_after_vertical_move()
+
+        # Clear pending deletion when moving to a different row
+        if self.selected_index >= len(self._theme_list) or (
+            self._theme_list[self.selected_index] != self.pending_delete_key
+        ):
             self.pending_delete_key = None
+
+    def action_move_left(self) -> None:
+        """Move focus left between name, edit, and delete elements (Left key)."""
+        if not self._theme_list:
             return
-        
-        current_theme = self._theme_list[self.selected_index]
-        is_match_omarchy = (current_theme == "__MATCH_OMARCHY__")
-        
-        # Navigate forwards through elements
-        if self.selected_element == "name":
-            if is_match_omarchy:
-                # Match Omarchy has no edit/delete, skip to next theme
-                self.selected_index = (self.selected_index + 1) % len(self._theme_list)
-                # Check if we wrapped to end - go to Sync button
-                if self.selected_index == 0:
-                    self.selected_index = len(self._theme_list)
-            else:
-                # Move to same theme's edit icon
-                self.selected_element = "edit"
-        elif self.selected_element == "edit":
-            # Move to same theme's delete icon
-            self.selected_element = "delete"
+
+        # Sync row and Match Omarchy only have the name element
+        if self.selected_index >= len(self._theme_list):
+            return
+
+        theme_key = self._theme_list[self.selected_index]
+        if theme_key == "__MATCH_OMARCHY__":
+            return
+
+        if self.selected_element == "edit":
+            self.selected_element = "name"
         elif self.selected_element == "delete":
-            # Move to next theme's name, or Sync button if at end
-            if self.selected_index == len(self._theme_list) - 1:
-                # Last theme - go to Sync button
-                self.selected_index = len(self._theme_list)
-                self.selected_element = "name"
-            else:
-                # Move to next theme
-                self.selected_index += 1
-                self.selected_element = "name"
-        
-        # Clear pending deletion when navigating away
-        if self.selected_index < len(self._theme_list) and self._theme_list[self.selected_index] != self.pending_delete_key:
-            self.pending_delete_key = None
+            self.selected_element = "edit"
+
+    def action_move_right(self) -> None:
+        """Move focus right between name, edit, and delete elements (Right key)."""
+        if not self._theme_list:
+            return
+
+        # Sync row and Match Omarchy only have the name element
+        if self.selected_index >= len(self._theme_list):
+            return
+
+        theme_key = self._theme_list[self.selected_index]
+        if theme_key == "__MATCH_OMARCHY__":
+            return
+
+        if self.selected_element == "name":
+            self.selected_element = "edit"
+        elif self.selected_element == "edit":
+            self.selected_element = "delete"
+
+    def _normalize_selection_after_vertical_move(self) -> None:
+        """Ensure selected_element is valid for the current row after Up/Down."""
+        # Sync row (last index) only has a name element
+        if self.selected_index == len(self._theme_list):
+            self.selected_element = "name"
+            return
+
+        if self.selected_index >= len(self._theme_list):
+            return
+
+        theme_key = self._theme_list[self.selected_index]
+
+        # Match Omarchy row has only the name element
+        if theme_key == "__MATCH_OMARCHY__" and self.selected_element in {"edit", "delete"}:
+            self.selected_element = "name"
     
     def action_apply_theme(self) -> None:
         """Apply action based on currently selected element"""
@@ -520,7 +529,7 @@ class GradientPanel(ScrollableContainer):
         if num_colors < 2:
             # Single color or no colors
             hex_color = colors[0] if colors else "#808080"
-            return f"[{hex_color}]▄[/]" * width
+            return f"[{hex_color} on {THEME['main_bg']}]▄[/]" * width
         
         for i in range(width):
             # Map LED position to color gradient (same algorithm as daemon)
@@ -542,6 +551,6 @@ class GradientPanel(ScrollableContainer):
                 b = c1[2] + (c2[2] - c1[2]) * frac
             
             hex_color = rgb_to_hex(r, g, b)
-            blocks.append(f"[{hex_color}]▄[/]")
+            blocks.append(f"[{hex_color} on {THEME['main_bg']}]▄[/]")
         
         return "".join(blocks)

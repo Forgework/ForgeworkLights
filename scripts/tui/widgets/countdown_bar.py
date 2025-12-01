@@ -5,6 +5,8 @@ from textual.widgets import Static
 from textual.reactive import reactive
 from textual.timer import Timer
 
+from ..theme import THEME
+
 
 class CountdownBar(Static):
     """
@@ -14,10 +16,10 @@ class CountdownBar(Static):
     
     progress = reactive(1.0)  # 1.0 = full, 0.0 = empty
     
-    def __init__(self, width: int = 20, color: str = "#79beae", **kwargs):
+    def __init__(self, width: int = 20, color: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.bar_width = width
-        self.bar_color = color
+        self.bar_color = color or THEME["button_fg"]
         self.timer: Timer | None = None
     
     def render(self) -> str:

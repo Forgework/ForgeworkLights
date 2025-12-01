@@ -13,38 +13,10 @@ import sys
 import subprocess
 from .color_selector import ColorSelector
 from .countdown_bar import CountdownBar
+from .theme_button import ThemeButton
 from ..utils.colors import generate_gradient
 from ..constants import LED_THEME_FILE, DAEMON_BINARY
 from ..theme import THEME
-
-
-class ThemeButton(Static):
-    """Individual clickable button widget"""
-    
-    class ButtonClicked(Message):
-        def __init__(self, button_id: str):
-            super().__init__()
-            self.button_id = button_id
-    
-    def __init__(self, label: str, button_id: str, shortcut: str, **kwargs):
-        super().__init__(**kwargs)
-        self.label = label
-        self.button_id = button_id
-        self.shortcut = shortcut
-        self.can_focus = False  # Not individually focusable
-    
-    def render(self) -> str:
-        text = f"[{self.shortcut}] {self.label}"
-        if self.has_focus:
-            text = f"[bold yellow]{text}[/]"
-        return text
-    
-    def on_click(self, event) -> None:
-        self.post_message(self.ButtonClicked(self.button_id))
-    
-    def on_key(self, event) -> None:
-        if event.key == "enter":
-            self.post_message(self.ButtonClicked(self.button_id))
 
 
 class ThemeCreator(Container):
@@ -93,38 +65,10 @@ class ThemeCreator(Container):
     
     def compose(self) -> ComposeResult:
         """Compose the theme creator UI"""
-        # Main vertical layout: controls on top, color picker below for more vertical space
+        # Main vertical layout: combined color picker and theme controls in one section
         with Vertical(id="theme-creator-main"):
-            # Top section: All controls in a horizontal layout
-            with Horizontal(id="theme-controls"):
-                # Left column: Theme name and preview
-                with Vertical(id="theme-info-column"):
-                    # Theme name input
-                    with Horizontal(classes="compact-row"):
-                        yield Input(placeholder="Theme Name", id="theme-name-input", classes="name-input")
-                    
-                    # Gradient preview
-                    with Horizontal(classes="compact-row"):
-                        yield Static("", id="gradient-preview", classes="preview-centered")
-                
-                # Right column: Color inputs and buttons
-                with Vertical(id="theme-inputs-column"):
-                    # Color inputs in one row (no labels)
-                    with Horizontal(classes="compact-row"):
-                        yield Input(placeholder="#ffbe0b", value=self.color1, id="color1-input", classes="color-input", max_length=7)
-                        yield Input(placeholder="#ff006e", value=self.color2, id="color2-input", classes="color-input", max_length=7)
-                        yield Input(placeholder="#3a0ca3", value=self.color3, id="color3-input", classes="color-input", max_length=7)
-                    
-                    # Buttons below hex inputs
-                    with Horizontal(id="button-row"):
-                        yield ThemeButton("Preview", "preview", "P", id="preview-button")
-                        yield ThemeButton("Save", "save", "S", id="save-button")
-                        yield ThemeButton("Clear", "clear", "C", id="clear-button")
-                    
-                    # Countdown bar (hidden by default)
-                    yield CountdownBar(width=42, color=THEME['button_fg'], id="preview-countdown")
-            
-            # Bottom section: Color picker with more vertical space to show gradient to black
+            # Keyboard hint directly under the "Create Custom Theme" border
+            yield Static("[dim]↑↓←→ adjust color, r/g/b/h/s/v keys (shift=decrease), p=preview, s=save, c=clear[/]", id="hint-text")
             yield ColorSelector(width=60, height=20, id="theme-color-picker")
     
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -302,6 +246,13 @@ class ThemeCreator(Container):
             # Show countdown and mark as previewing
             self.is_previewing = True
             countdown.display = True
+            # Hide static gradient preview + spacer while countdown is visible
+            preview.display = False
+            try:
+                spacer = self.query_one("#gradient-spacer", Static)
+                spacer.display = False
+            except Exception:
+                pass
             preview.update(f"👁 Previewing for {int(self.preview_duration)}s...")
             
             # Start countdown
@@ -333,7 +284,13 @@ class ThemeCreator(Container):
             countdown.display = False
             self.is_previewing = False
             
-            # Restore preview display
+            # Restore preview display and spacer
+            preview.display = True
+            try:
+                spacer = self.query_one("#gradient-spacer", Static)
+                spacer.display = True
+            except Exception:
+                pass
             self._update_preview()
             
             print("Preview ended, theme restored", file=sys.stderr)
@@ -424,15 +381,33 @@ class ThemeCreator(Container):
         """Handle key presses - intercept arrow keys when hex inputs are focused"""
         try:
             focused = self.app.focused
+            # Global shortcuts for the Create Custom Theme section
+            if event.key in ["p", "P"]:
+                self.action_preview_theme()
+                event.prevent_default()
+                event.stop()
+                return
+            if event.key in ["s", "S"]:
+                self.action_save_theme()
+                event.prevent_default()
+                event.stop()
+                return
+            if event.key in ["c", "C"]:
+                self.action_clear()
+                event.prevent_default()
+                event.stop()
+                return
+
             if focused and hasattr(focused, 'id'):
                 # Check if a color input has focus
                 if focused.id in ["color1-input", "color2-input", "color3-input"]:
-                    # Arrow keys should control the color selector
-                    if event.key in ["up", "down", "left", "right"]:
+                    # Arrow keys and RGB/HSV shortcut keys should control the color selector
+                    slider_keys = {"r", "R", "g", "G", "b", "B", "h", "H", "s", "S", "v", "V"}
+                    if event.key in ["up", "down", "left", "right"] or event.key in slider_keys:
                         picker = self.query_one("#theme-color-picker", ColorSelector)
                         # Forward the key event to the color selector
                         picker.on_key(event)
-                        # Prevent the input from handling the arrow key
+                        # Prevent the input from handling the key
                         event.prevent_default()
                         event.stop()
         except Exception as e:

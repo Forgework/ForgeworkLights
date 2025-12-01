@@ -13,6 +13,17 @@ HELPER="${1:-./build/fw_root_helper}"
 TESTS_PASSED=0
 TESTS_FAILED=0
 
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Valid payload tests require root privileges."
+    read -rp "Elevate with sudo now to run them? [y/N] " elevate
+    if [[ $elevate =~ ^[Yy]$ ]]; then
+        echo "Re-running with sudo..."
+        exec sudo "$0" "$HELPER"
+    else
+        echo "Continuing without root (valid payload tests will show as SKIP)."
+    fi
+fi
+
 # Test helper function
 test_case() {
     local name="$1"
@@ -30,16 +41,16 @@ test_case() {
         fi
         if "$HELPER" "${args[@]}" &> /dev/null; then
             echo -e "${GREEN}PASS${NC}"
-            ((TESTS_PASSED++))
+            ((++TESTS_PASSED))
         else
             echo -e "${RED}FAIL${NC}"
-            ((TESTS_FAILED++))
+            ((++TESTS_FAILED))
         fi
     else
         # Should fail
         if ! "$HELPER" "${args[@]}" &> /dev/null; then
             echo -e "${GREEN}PASS${NC}"
-            ((TESTS_PASSED++))
+            ((++TESTS_PASSED))
         else
             echo -e "${RED}FAIL${NC} (expected failure but succeeded)"
             ((TESTS_FAILED++))

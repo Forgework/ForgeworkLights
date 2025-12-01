@@ -35,6 +35,8 @@ The installer will:
 - ✓ Build the daemon and root helper
 - ✓ Install user daemon to `/usr/local/bin`
 - ✓ Install root helper to `/usr/local/libexec` (root:root 4755 setuid-root)
+- ✓ Install LED theme database to `~/.config/forgeworklights/led_themes.json` and `/usr/local/share/forgeworklights/led_themes.json`
+- ✓ Install the Textual TUI package (`forgeworklights-menu`) plus theme sync/generator helpers
 - ✓ Set up configuration
 - ✓ Install systemd user service (optional)
 - ✓ Set up waybar integration (optional)
@@ -91,8 +93,11 @@ sudo install -Dm755 build/forgeworklights /usr/local/bin/forgeworklights
 sudo install -Dm755 -o root -g root build/fw_root_helper /usr/local/libexec/fw_root_helper
 sudo chmod 4755 /usr/local/libexec/fw_root_helper
 
-# Install TUI (optional)
-sudo install -Dm755 scripts/options-tui.py /usr/local/bin/forgeworklights-menu
+# Install TUI package (optional)
+python3 -m pip install --user -r requirements.txt
+SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])")
+sudo mkdir -p "$SITE_PACKAGES/tui"
+sudo cp -r scripts/tui/* "$SITE_PACKAGES/tui/"
 ```
 
 ## Configuration
@@ -102,8 +107,8 @@ Create config file at `~/.config/forgeworklights/config.toml`:
 ```toml
 led_count = 22
 max_brightness = 0.7
-gamma_exponent = 0.45     # 0.45 = sRGB→linear (recommended), 1.0 = no correction
-color_order = "GRB"       # WS2812B standard
+gamma_exponent = 1.33     # 0.45 = sRGB→linear, 1.0 = no correction
+color_order = "RGB"       # framework_tool uses RGB
 tool_path = "/usr/bin/framework_tool"
 ```
 
@@ -112,8 +117,16 @@ tool_path = "/usr/bin/framework_tool"
 - **led_count**: Number of LEDs in your strip (default: 22)
 - **max_brightness**: Brightness cap 0.0-1.0 (default: 0.7)
 - **gamma_exponent**: Color space correction (0.45 = sRGB→linear, 1.0 = passthrough)
-- **color_order**: "GRB" for WS2812B, "RGB" for other strips
+- **color_order**: "RGB" (framework_tool uses RGB)
 - **tool_path**: Path to framework_tool binary
+
+### LED Theme Workflow
+
+- Installer seeds `led_themes.json` for both user and system scopes so curated gradients are always available.
+- The Textual control panel (`forgeworklights-menu`) lets you browse, edit, or author gradients; CLI users can edit the JSON directly.
+- `scripts/tui/sync_themes.py` (also exposed as `forgeworklights-sync-themes`) refreshes Omarchy-derived themes and keeps the daemon/TUI databases aligned.
+
+ℹ️ **Need the full picture?** See [readmore/THEMES-LED-README.md](readmore/THEMES-LED-README.md) for LED gradient storage + hot reload behavior and [readmore/THEMES-TUI-README.md](readmore/THEMES-TUI-README.md) for sync + TUI palette details.
 
 ### Current Limiting
 
@@ -183,39 +196,17 @@ ForgeworkLights uses a secure two-tier architecture:
    - Strict input validation (hex-encoded RGB data only)
    - No configuration, no file I/O, no user logic
 
-### Process Flow
+### Process Flow (high level)
 
-1. **Theme Detection**: Monitors `~/.config/omarchy/current/theme` symlink via inotify
-2. **Color Extraction**: Reads `btop.theme` from active theme directory:
-   - `theme[temp_start]` → First gradient color
-   - `theme[temp_mid]` → Middle gradient color
-   - `theme[temp_end]` → Final gradient color
-3. **Gradient Generation**: Creates smooth 3-color gradient across 22 LEDs
-4. **Post-Processing**: 
-   - Applies gamma correction (sRGB→linear color space)
-   - Scales by brightness (clamped to [0.0, 1.0])
-   - If safety mode enabled: limits current to 2.4A using WS2812B 60mA/LED model
-5. **LED Update**: Daemon calls root helper with hex-encoded LED data → helper calls `framework_tool --rgbkbd`
-6. **Live Updates**: Automatically reloads when theme changes (< 150ms latency)
+1. Watch Omarchy's `~/.config/omarchy/current/theme` symlink and the LED theme database for changes.
+2. Resolve colors: either pull a curated gradient from `led_themes.json` or derive one from the active Omarchy palette (`btop.theme`/`palette.json`).
+3. Apply gamma + brightness + safety limits, then hand frames to the root helper (`framework_tool --rgbkbd`).
+
+More detail lives in [readmore/THEMES-LED-README.md](readmore/THEMES-LED-README.md).
 
 ## Omarchy Theme Requirements
 
-Themes must include a `btop.theme` file with temperature gradient colors:
-
-```bash
-~/.local/share/omarchy/themes/nord/btop.theme
-~/.local/share/omarchy/themes/catppuccin/btop.theme
-# etc.
-```
-
-The daemon extracts these lines:
-```
-theme[temp_start]="#81A1C1"
-theme[temp_mid]="#88C0D0"
-theme[temp_end]="#ECEFF4"
-```
-
-**Fallback**: If `btop.theme` is missing, the daemon tries `palette.json` or `theme.json` with `accent`, `accent2`, `accent3` fields.
+For best results supply a `btop.theme` (or `palette.json`/`theme.json`) with `temp_*` or `accent*` colors inside each Omarchy theme folder so sync/gradient generation succeeds. Exact parsing rules and fallbacks are documented in [readmore/THEMES-LED-README.md](readmore/THEMES-LED-README.md) and [readmore/THEMES-TUI-README.md](readmore/THEMES-TUI-README.md).
 
 ## Limitations
 
@@ -249,13 +240,14 @@ theme[temp_end]="#ECEFF4"
 - Should show: `-rwsr-xr-x 1 root root` (setuid bit set)
 - Reinstall if needed: `./install.sh`
 
+## Further Reading
+
+- [readmore/THEMES-LED-README.md](readmore/THEMES-LED-README.md) – LED gradient schema, daemon reload hooks, theme selection rules.
+- [readmore/THEMES-TUI-README.md](readmore/THEMES-TUI-README.md) – Sync pipeline, TUI palettes, per-theme customization tips.
+
 ## License
 
 GPL-2.0 license
-
-## Contributing
-
-Pull requests welcome! Please ensure code builds and follows existing style.
 
 ## Credits
 

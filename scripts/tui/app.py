@@ -9,6 +9,7 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Container
+from textual.widgets import Static
 from textual.timer import Timer
 from textual.worker import Worker, WorkerState
 import os
@@ -24,9 +25,13 @@ from .constants import (
     LED_THEME_FILE,
     ANIMATION_FILE,
     DAEMON_BINARY,
-    AUTO_REFRESH_INTERVAL
+    AUTO_REFRESH_INTERVAL,
+    AETHER_THEME_DIR,
 )
 from .styles import CSS
+from .theme import THEME
+from . import theme as theme_module
+from . import styles as styles_module
 from .widgets import (
     ControlFooterBorder,
     BorderTop,
@@ -34,7 +39,7 @@ from .widgets import (
     Filler,
     Spacer,
     StatusPanel,
-    GradientPanel,
+    ThemeSelectionPanel,
     BrightnessPanel,
     ThemeCreator,
     AnimationsPanel
@@ -63,17 +68,18 @@ class ForgeworkLightsTUI(App):
         self.last_omarchy_theme = None
         self.omarchy_wd = None  # Watch descriptor for Omarchy theme directory
         self.config_wd = None   # Watch descriptor for config directory
+        self.aether_wd = None   # Watch descriptor for Aether theme directory
     
     def compose(self) -> ComposeResult:
         with Container(id="main-panel"):
             # Scrollable content area
             with Container(id="content-area"):
                 yield BorderTop("ForgeWorkLights")
-                yield Spacer()
-                yield StatusPanel(id="status-panel")
+                yield StatusPanel(id="status-panel") 
+                yield BrightnessPanel(id="brightness-panel")
                 yield Spacer()
                 yield BorderMiddle("Theme Selection")
-                yield GradientPanel(id="gradient-panel")
+                yield ThemeSelectionPanel(id="theme-selection-panel")
                 yield BorderMiddle("Create Custom Theme")
                 yield ThemeCreator(THEMES_DB_PATH, id="theme-creator")
                 yield BorderMiddle("Animations")
@@ -82,10 +88,6 @@ class ForgeworkLightsTUI(App):
             
             # Bottom section (docked)
             with Container(id="bottom-section"):
-                yield BorderMiddle("Brightness")
-                yield Spacer()
-                yield BrightnessPanel(id="brightness-panel")
-                yield Spacer()
                 yield ControlFooterBorder()
     
     def on_mount(self) -> None:
@@ -94,7 +96,7 @@ class ForgeworkLightsTUI(App):
         self.sub_title = "[Tab] Switch  [↑↓←→] Navigate  [Enter] Apply  [S] Save  [C] Clear  [Ctrl+Q] Quit"
         self.refresh_status()
         # Start periodic update every 2 seconds (only for daemon status now)
-        # Brightness, theme, and themes.json are all handled by inotify
+        # Brightness, theme, and the LED themes database are all handled by inotify
         self.update_timer = self.set_interval(AUTO_REFRESH_INTERVAL, self._refresh_daemon_status)
         
         # Start watching for Omarchy theme changes (inotify-based)
@@ -103,9 +105,37 @@ class ForgeworkLightsTUI(App):
         # Start periodic status panel refresh (every 1 second when focused)
         self.set_interval(1.0, self._periodic_status_refresh)
         
-        # Focus the gradient panel for keyboard navigation
-        gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+        # Focus the theme selection panel for keyboard navigation
+        gradient_panel = self.query_one("#theme-selection-panel", ThemeSelectionPanel)
         gradient_panel.focus()
+
+    def _reload_tui_theme(self) -> None:
+        """Reload theme colors and CSS so TUI updates without restart."""
+        try:
+            # Reload color palette from disk and update THEME in-place so existing imports see changes.
+            new_theme = theme_module.load_theme()
+            theme_module.THEME.clear()
+            theme_module.THEME.update(new_theme)
+
+            # Regenerate CSS with the updated theme and reload it into the running app.
+            new_css = styles_module.get_css()
+            self.stylesheet.read(new_css)
+            
+            # Explicitly refresh border widgets so horizontal and vertical borders
+            # pick up the new box_outline color immediately.
+            for border in self.query(BorderTop):
+                border.refresh()
+            for border in self.query(BorderMiddle):
+                border.refresh()
+            for border in self.query(ControlFooterBorder):
+                border.refresh()
+
+            # Also do a general refresh to repaint the rest of the UI.
+            self.refresh()
+            print("[TUI] Reloaded TUI theme and CSS", file=sys.stderr)
+        except Exception as e:
+            print(f"[TUI] Failed to reload TUI theme: {e}", file=sys.stderr)
+            traceback.print_exc()
     
     def _periodic_status_refresh(self) -> None:
         """Refresh status panel periodically"""
@@ -179,10 +209,10 @@ class ForgeworkLightsTUI(App):
         
         status_panel = self.query_one("#status-panel", StatusPanel)
         status_panel.daemon_status = daemon_status
-        status_panel.current_theme = theme  # Changed to match gradient panel
+        status_panel.current_theme = theme  # Changed to match theme selection panel
         status_panel.brightness_value = brightness_pct
         
-        gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+        gradient_panel = self.query_one("#theme-selection-panel", ThemeSelectionPanel)
         gradient_panel.current_theme = theme
         
         # Only update brightness display if not currently being adjusted by user
@@ -209,7 +239,7 @@ class ForgeworkLightsTUI(App):
         except Exception:
             self._brightness_adjusting = False
     
-    def on_gradient_panel_theme_selected(self, message: GradientPanel.ThemeSelected) -> None:
+    def on_theme_selection_panel_theme_selected(self, message: ThemeSelectionPanel.ThemeSelected) -> None:
         """Handle theme selection"""
         import subprocess
         
@@ -233,13 +263,15 @@ class ForgeworkLightsTUI(App):
                 # Touch the LED theme file to trigger daemon reload via inotify
                 LED_THEME_FILE.touch()
             
-            # Update the gradient panel display to show new arrow position
-            gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+            # Update the theme selection panel display to show new arrow position
+            gradient_panel = self.query_one("#theme-selection-panel", ThemeSelectionPanel)
             gradient_panel._update_display()
-            
-            # Theme change will trigger daemon reload via inotify
-            # No need to do anything else - daemon handles animations
-            
+
+            # Theme change will trigger daemon reload via inotify for LEDs.
+
+            # Also reload TUI theme/CSS so colors update immediately.
+            self._reload_tui_theme()
+
             # Force immediate refresh of status after a short delay
             self.set_timer(0.5, self.refresh_status)
             
@@ -271,21 +303,21 @@ class ForgeworkLightsTUI(App):
     def on_theme_creator_theme_created(self, message: ThemeCreator.ThemeCreated) -> None:
         """Handle custom theme creation"""
         print(f"Theme created: {message.theme_name}", file=sys.stderr)
-        # Refresh the gradient panel to show the new theme
-        gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+        # Refresh the theme selection panel to show the new theme
+        gradient_panel = self.query_one("#theme-selection-panel", ThemeSelectionPanel)
         gradient_panel._theme_list = []  # Reset list to force reload
         gradient_panel._update_display()
         
         # Theme change will trigger daemon to reload animation colors via inotify
     
-    def on_gradient_panel_theme_edit_requested(self, message: GradientPanel.ThemeEditRequested) -> None:
+    def on_theme_selection_panel_theme_edit_requested(self, message: ThemeSelectionPanel.ThemeEditRequested) -> None:
         """Handle theme edit request from gradient panel"""
         print(f"Edit requested for theme: {message.theme_key}", file=sys.stderr)
         # Load the theme into the theme creator
         theme_creator = self.query_one("#theme-creator", ThemeCreator)
         theme_creator.load_theme_for_editing(message.theme_key, message.theme_name, message.colors)
     
-    def on_gradient_panel_theme_delete_requested(self, message: GradientPanel.ThemeDeleteRequested) -> None:
+    def on_theme_selection_panel_theme_delete_requested(self, message: ThemeSelectionPanel.ThemeDeleteRequested) -> None:
         """Handle theme delete request from gradient panel"""
         print(f"Delete requested for theme: {message.theme_key}", file=sys.stderr)
         
@@ -305,8 +337,8 @@ class ForgeworkLightsTUI(App):
                 THEMES_DB_PATH.write_text(json.dumps(db_data, indent=2))
                 print(f"Deleted theme: {message.theme_name}", file=sys.stderr)
                 
-                # Refresh the gradient panel to update the list
-                gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+                # Refresh the theme selection panel to update the list
+                gradient_panel = self.query_one("#theme-selection-panel", ThemeSelectionPanel)
                 gradient_panel._theme_list = []
                 gradient_panel._update_display()
                 self.refresh_status()
@@ -316,21 +348,20 @@ class ForgeworkLightsTUI(App):
             print(f"Error deleting theme: {e}", file=sys.stderr)
             traceback.print_exc()
     
-    def on_gradient_panel_theme_sync_requested(self, message: GradientPanel.ThemeSyncRequested) -> None:
+    def on_theme_selection_panel_theme_sync_requested(self, message: ThemeSelectionPanel.ThemeSyncRequested) -> None:
         """Handle theme sync request from gradient panel"""
         print("\n=== Theme sync requested ===", file=sys.stderr)
         
         try:
-            # Import and run sync_themes directly
-            sys.path.insert(0, str(Path(__file__).parent.parent))
-            from sync_themes import sync_themes
-            
+            # Import and run sync_themes from local tui package
+            from .sync_themes import sync_themes
+
             changes = sync_themes(verbose=True)
             print(f"Sync completed: {changes} themes added/updated", file=sys.stderr)
             
-            # Refresh the gradient panel to show new themes
+            # Refresh the theme selection panel to show new themes
             print("Refreshing theme list...", file=sys.stderr)
-            gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+            gradient_panel = self.query_one("#theme-selection-panel", ThemeSelectionPanel)
             gradient_panel._theme_list = []
             gradient_panel._update_display()
             self.refresh_status()
@@ -376,6 +407,16 @@ class ForgeworkLightsTUI(App):
                     os.IN_CREATE | os.IN_DELETE | os.IN_MOVED_TO | os.IN_MOVED_FROM
                 )
                 print(f"Started inotify watcher on {omarchy_dir} (wd={self.omarchy_wd})", file=sys.stderr)
+
+            # Watch Aether theme directory directly so we can detect palette changes
+            if AETHER_THEME_DIR.exists() and AETHER_THEME_DIR.is_dir():
+                self.aether_wd = os.inotify_add_watch(
+                    self.inotify_fd,
+                    str(AETHER_THEME_DIR),
+                    os.IN_ATTRIB | os.IN_CLOSE_WRITE | os.IN_MOVE_SELF | os.IN_DELETE_SELF |
+                    os.IN_CREATE | os.IN_DELETE | os.IN_MOVED_TO | os.IN_MOVED_FROM,
+                )
+                print(f"Started inotify watcher on {AETHER_THEME_DIR} (wd={self.aether_wd})", file=sys.stderr)
             
             # Watch omarchy-argb config directory
             config_dir = LED_THEME_FILE.parent
@@ -439,6 +480,10 @@ class ForgeworkLightsTUI(App):
                         # The handler will verify if theme actually changed
                         print(f"Event in Omarchy directory: '{name}' - checking for theme change", file=sys.stderr)
                         self.call_from_thread(self._on_omarchy_theme_changed)
+                    elif wd == self.aether_wd:
+                        # Event from the Aether theme directory - resync themes so Aether entry updates
+                        print(f"Event in Aether theme directory: '{name}' - syncing Aether theme", file=sys.stderr)
+                        self.call_from_thread(self._on_aether_theme_changed)
                     elif wd == self.config_wd:
                         # Event from config directory
                         if name == LED_THEME_FILE.name:
@@ -460,6 +505,35 @@ class ForgeworkLightsTUI(App):
                 pass
         
         print("[TUI] inotify loop exited", file=sys.stderr)
+
+    def _on_aether_theme_changed(self):
+        """Handle changes inside the Aether theme directory.
+
+        When the Aether Omarchy theme changes on disk (e.g. its btop.theme
+        is edited), resync themes so the Aether entry in themes.json stays
+        in sync. The sync logic is responsible for updating just that
+        theme's data.
+        """
+        try:
+            print("[TUI] _on_aether_theme_changed() called", file=sys.stderr)
+
+            # Small delay to allow file writes to complete
+            time.sleep(0.1)
+
+            from .sync_themes import sync_themes
+
+            changes = sync_themes(verbose=True)
+            print(f"[TUI] Aether theme sync completed, {changes} themes added/updated", file=sys.stderr)
+
+            # themes.json rewrite will trigger _on_themes_db_changed via inotify,
+            # which refreshes the theme selection panel. We can still refresh the
+            # status view to keep everything consistent.
+            self.refresh_status()
+
+        except Exception as e:
+            print(f"[TUI] Error handling Aether theme change: {e}", file=sys.stderr)
+            traceback.print_exc()
+
     
     def _on_omarchy_theme_changed(self):
         """Handle Omarchy theme change event (from inotify)"""
@@ -485,8 +559,11 @@ class ForgeworkLightsTUI(App):
             print(f"[TUI] Omarchy theme changed: {self.last_omarchy_theme} -> {current_theme}", file=sys.stderr)
             self.last_omarchy_theme = current_theme
             
-            # Daemon will detect theme change via inotify and reload colors automatically
-            
+            # Daemon will detect theme change via inotify and reload colors automatically.
+
+            # Reload TUI theme/CSS so the interface matches the new Omarchy theme.
+            self._reload_tui_theme()
+
             # Refresh status to update both status panel and gradient panel
             print(f"[TUI] Calling refresh_status() after theme change", file=sys.stderr)
             self.refresh_status()
@@ -519,12 +596,15 @@ class ForgeworkLightsTUI(App):
     def _on_themes_db_changed(self):
         """Handle themes database change (from inotify)"""
         try:
-            # Refresh gradient panel to show new/updated themes
-            gradient_panel = self.query_one("#gradient-panel", GradientPanel)
+            # Refresh theme selection panel to show new/updated themes
+            gradient_panel = self.query_one("#theme-selection-panel", ThemeSelectionPanel)
             gradient_panel._theme_list = []
             gradient_panel._update_display()
             
-            # Theme update will trigger daemon to reload animation colors via inotify
+            # Theme update will trigger daemon to reload animation colors via inotify.
+
+            # Also reload TUI theme/CSS in case the current theme's palette changed.
+            self._reload_tui_theme()
         
         except Exception as e:
             pass  # Silently ignore

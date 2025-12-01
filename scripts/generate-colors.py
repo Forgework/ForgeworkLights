@@ -31,7 +31,7 @@ def main():
         
         return 0
     
-    # Mode: Update all themes in themes.json
+    # Mode: Update all LED themes in the LED themes database
     themes_path = THEMES_DB_PATH
     
     if not themes_path.exists():
@@ -60,7 +60,7 @@ def main():
             print(f"✓ {theme_key}: {original_count} → 22 colors")
             updated_count += 1
     
-    # Save updated themes.json
+    # Save updated LED themes database
     with open(themes_path, 'w') as f:
         json.dump(data, f, indent=2)
     

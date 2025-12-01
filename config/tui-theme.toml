@@ -5,7 +5,7 @@
 main_bg = "#091819"
 
 # Main foreground/text color
-main_fg = "#ffffff"
+main_fg = "#006b5a"
 
 # Title color for panel headers and labels
 title = "#93c7d2"
@@ -15,9 +15,6 @@ hi_fg = "#C3DDDF"
 
 # Background color for selected items
 selected_bg = "#345254"
-
-# Foreground color for selected items
-selected_fg = "#ffffff"
 
 # Color for inactive/disabled text and elements
 inactive_fg = "#345254"

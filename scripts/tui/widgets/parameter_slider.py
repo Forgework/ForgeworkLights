@@ -128,6 +128,18 @@ class ParameterSlider(Static):
             event.prevent_default()
             event.stop()
             return
+        # Custom Tab behavior: leave parameters section and go to next major widget
+        elif event.key == "tab":
+            try:
+                # Move focus to the footer controls (next major focus target)
+                footer = self.app.query_one("ControlFooterBorder")
+                footer.focus()
+                event.prevent_default()
+                event.stop()
+                return
+            except Exception:
+                # If footer not found, fall back to default behavior
+                return
         # Up navigation - if at first slider, release focus for Shift+Tab
         elif event.key == "up":
             # Find all sliders in parent container

@@ -3,6 +3,7 @@ Border widgets for ForgeworkLights TUI
 """
 from textual.widgets import Static
 from textual.message import Message
+from ..theme import THEME
 
 
 class BorderTop(Static):
@@ -16,7 +17,8 @@ class BorderTop(Static):
         title = f" {self.border_title} "
         left_pad = 2
         right_pad = max(0, width - len(title) - left_pad - 4)
-        return f"[cyan]╭{'─' * left_pad}┤{title}├{'─' * right_pad}╮[/]"
+        border_color = THEME["box_outline"]
+        return f"[{border_color}]╭{'─' * left_pad}┤{title}├{'─' * right_pad}╮[/]"
 
 
 class BorderMiddle(Static):
@@ -32,17 +34,20 @@ class BorderMiddle(Static):
             title = f" {self.border_title} "
             left_pad = 2
             right_pad = max(0, width - len(title) - left_pad - 4)
-            return f"[cyan]├{'─' * left_pad}┤{title}├{'─' * right_pad}┤[/]"
+            border_color = THEME["box_outline"]
+            return f"[{border_color}]├{'─' * left_pad}┤{title}├{'─' * right_pad}┤[/]"
         else:
             # Render plain border
-            return f"[cyan]├{'─' * (width - 2)}┤[/]"
+            border_color = THEME["box_outline"]
+            return f"[{border_color}]├{'─' * (width - 2)}┤[/]"
 
 
 class Spacer(Static):
     """Empty line with borders for vertical spacing"""
     def render(self) -> str:
         width = max(60, self.size.width if self.size.width > 0 else 70)
-        return f"[cyan]│{' ' * (width - 2)}│[/]"
+        border_color = THEME["box_outline"]
+        return f"[{border_color}]│{' ' * (width - 2)}│[/]"
 
 
 class Filler(Static):
@@ -51,9 +56,11 @@ class Filler(Static):
         width = max(60, self.size.width if self.size.width > 0 else 70)
         height = self.size.height if self.size.height > 0 else 10
         
+        border_color = THEME["box_outline"]
+
         lines = []
         for _ in range(height):
-            lines.append(f"[cyan]│{' ' * (width - 2)}│[/]")
+            lines.append(f"[{border_color}]│{' ' * (width - 2)}│[/]")
         
         return "\n".join(lines)
 
@@ -101,8 +108,9 @@ class ControlFooterBorder(Static):
         # Total: ╰(1) + left_pad + ┤(1) + controls(15) + ├(1) + ─(1) + ╯(1)
         # = left_pad + 20 = width
         left_pad = max(1, width - 20)
-        
-        return f"[cyan]╰{'─' * left_pad}┤{controls}├─╯[/]"
+
+        border_color = THEME["box_outline"]
+        return f"[{border_color}]╰{'─' * left_pad}┤{controls}├─╯[/]"
     
     def on_click(self, event) -> None:
         x = event.x

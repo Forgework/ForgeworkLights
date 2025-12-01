@@ -52,16 +52,16 @@ Filler {{
     height: 1fr;
 }}
 
-GradientPanel {{
+ThemeSelectionPanel {{
     width: 100%;
     height: auto;
-    max-height: 20;
+    max-height: 35;
     scrollbar-size: 0 0;
     overflow-y: auto;
     border: none;
 }}
 
-GradientPanel:focus {{
+ThemeSelectionPanel:focus {{
     border: none;
 }}
 
@@ -75,7 +75,7 @@ ControlFooterBorder:focus {{
     border: none;
 }}
 
-#gradient-content {{
+#theme-selection-content {{
     width: 100%;
     height: auto;
 }}
@@ -116,6 +116,7 @@ ThemeCreator {{
     width: 100%;
     height: auto;
     padding: 0 1;
+    background: {THEME['main_bg']};
     border-left: solid {THEME['box_outline']};
     border-right: solid {THEME['box_outline']};
 }}
@@ -130,7 +131,7 @@ ThemeCreator #theme-creator-main {{
 ThemeCreator #theme-controls {{
     width: 100%;
     height: auto;
-    layout: horizontal;
+    layout: vertical;
     margin-bottom: 1;
 }}
 
@@ -198,7 +199,7 @@ ThemeCreator Horizontal#button-row {{
 ThemeCreator CountdownBar {{
     width: 100%;
     height: 1;
-    margin-top: 0;
+    margin-top: 1;
     text-align: center;
     content-align: center middle;
 }}
@@ -233,7 +234,7 @@ ThemeCreator ColorSelector {{
     max-height: 22;
     padding: 0;
     margin: 0;
-    background: {THEME['secondary_bg']};
+    background: {THEME['main_bg']};
     border: solid {THEME['div_line']};
     overflow: hidden;
 }}
@@ -250,7 +251,7 @@ ThemeCreator ColorSelector #color-selector-main {{
 }}
 
 ThemeCreator ColorSelector #color-grid {{
-    width: auto;
+    width: 60;
     height: 20;
     max-height: 20;
     margin: 0;
@@ -258,8 +259,8 @@ ThemeCreator ColorSelector #color-grid {{
 }}
 
 ThemeCreator ColorSelector #color-info {{
-    width: auto;
-    min-width: 30;
+    width: 1fr;
+    min-width: 40;
     height: 22;
     padding: 0 1;
     text-align: left;
@@ -269,13 +270,14 @@ ThemeCreator ColorSelector #color-info {{
 
 ThemeCreator ColorSelector #color-preview {{
     height: 1;
-    width: 100%;
+    width: auto;
+    margin-right: 1;
 }}
 
 ThemeCreator ColorSelector #hex-display {{
     height: 1;
-    width: 100%;
-    margin-bottom: 1;
+    width: 1fr;
+    margin-bottom: 0;
 }}
 
 ThemeCreator ColorSelector #spacer1 {{
@@ -302,7 +304,7 @@ Slider {{
 AnimationsPanel {{
     width: 100%;
     height: auto;
-    padding: 1 1;
+    padding: 0 1;
     margin: 0;
     border-left: solid {THEME['box_outline']};
     border-right: solid {THEME['box_outline']};

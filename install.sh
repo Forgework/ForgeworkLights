@@ -251,9 +251,13 @@ install_binaries() {
         echo -e "${GREEN}✓${NC} Installed config to ~/.config/forgeworklights/config.toml"
     fi
 
-    # Install theme database (always update)
-    cp themes.json ~/.config/forgeworklights/themes.json
-    echo -e "${GREEN}✓${NC} Installed theme database to ~/.config/forgeworklights/themes.json"
+    # Install LED theme database (always update user copy)
+    cp config/led_themes.json ~/.config/forgeworklights/led_themes.json
+    echo -e "${GREEN}✓${NC} Installed LED theme database to ~/.config/forgeworklights/led_themes.json"
+
+    # Install premade LED themes into shared data directory for TUI sync logic
+    sudo install -Dm644 config/led_themes.json /usr/local/share/forgeworklights/led_themes.json
+    echo -e "${GREEN}✓${NC} Installed premade LED themes to /usr/local/share/forgeworklights/led_themes.json"
 }
 
 # Setup systemd service

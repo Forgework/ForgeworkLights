@@ -3,7 +3,7 @@ ForgeworkLights TUI widgets
 """
 from .borders import BorderTop, BorderMiddle, Spacer, Filler, ControlFooterBorder
 from .status import StatusPanel
-from .gradient import GradientPanel
+from .theme_selection import ThemeSelectionPanel
 from .brightness import BrightnessPanel
 from .theme_creator import ThemeCreator
 from .color_selector import ColorSelector
@@ -19,7 +19,7 @@ __all__ = [
     "Filler",
     "ControlFooterBorder",
     "StatusPanel",
-    "GradientPanel",
+    "ThemeSelectionPanel",
     "BrightnessPanel",
     "ThemeCreator",
     "ColorSelector",

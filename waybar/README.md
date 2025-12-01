@@ -1,6 +1,7 @@
 # Waybar Integration
 
 Add ForgeworkLights module to your Waybar configuration.
+this is handled by the installer.
 
 ## Installation
 

@@ -80,6 +80,7 @@ class AnimationsPanel(Static):
     
     selected_animation = reactive("static")
     focused_index = reactive(0)
+    is_focused = reactive(False)
     
     # Available animations - derived from ANIMATIONS dict
     ANIMATIONS_LIST = [(anim_id, info["name"]) for anim_id, info in ANIMATIONS.items()]
@@ -106,6 +107,15 @@ class AnimationsPanel(Static):
         # Load current animation from config file
         if ANIMATION_FILE.exists():
             self.selected_animation = ANIMATION_FILE.read_text().strip()
+        
+        # Sync focused index with currently selected animation
+        try:
+            for idx, (anim_id, _name) in enumerate(self.ANIMATIONS_LIST):
+                if anim_id == self.selected_animation:
+                    self.focused_index = idx
+                    break
+        except Exception:
+            pass
         
         self._update_display()
     
@@ -138,30 +148,27 @@ class AnimationsPanel(Static):
     
     def _update_display(self) -> None:
         """Update the animations list and parameters display"""
-        # Update left side - animations list
+        # Update left side - animations list (single column)
         lines = ["[dim]↑↓ navigate, Enter select[/]", ""]
-        # Check if left container is focused
-        left_container = self.query_one("#animations-left", AnimationsList)
-        list_has_focus = left_container.has_focus
-        
+        # Use reactive focus state - only show selection highlight if panel is focused
+        try:
+            left_container = self.query_one("#animations-left", AnimationsList)
+            list_has_focus = left_container.has_focus or self.is_focused
+        except Exception:
+            list_has_focus = self.is_focused
+
+        # Build single-column rows
         for idx, (anim_id, anim_name) in enumerate(self.ANIMATIONS_LIST):
-            if anim_id == self.selected_animation:
-                arrow = "→"
-            else:
-                arrow = " "
-            
+            arrow = "→" if anim_id == self.selected_animation else " "
             if idx == self.focused_index and list_has_focus:
-                # Focused item - use theme highlight colors
                 line = f"[bold {THEME['hi_fg']} on {THEME['selected_bg']}] {arrow} {anim_name}[/]"
             elif anim_id == self.selected_animation:
-                # Selected but not focused - use theme title color
                 line = f"[{THEME['title']}] {arrow} {anim_name}[/]"
             else:
-                # Unselected - use theme main foreground
                 line = f"[{THEME['main_fg']}] {arrow} {anim_name}[/]"
-            
+
             lines.append(line)
-        
+
         animations_list = self.query_one("#animations-list", Static)
         animations_list.update("\n".join(lines))
         
@@ -187,7 +194,7 @@ class AnimationsPanel(Static):
             header.update(f"[bold {THEME['title']}]{anim_data['name']}[/]\n[{THEME['inactive_fg']}]No adjustable parameters[/]")
             return
         
-        header.update(f"[bold {THEME['title']}]{anim_data['name']} Parameters:[/]\n[dim]Tab to focus, ↑↓ navigate, ←→ adjust[/]\n")
+        header.update(f"[bold {THEME['title']}]{anim_data['name']} Parameters:[/]\n[dim]↑↓ navigate, ←→ adjust[/]\n")
         
         # Mount sliders for each parameter
         params_container = self.query_one("#animations-right")
@@ -238,12 +245,12 @@ class AnimationsPanel(Static):
         """Scroll animations list to keep focused item visible"""
         # The animations list is inside #animations-left which is a Vertical container
         # We need to scroll the list content to show the focused item
-        # Account for header lines: instruction (1 line) + blank (1) = 2 lines offset
+        # Account for header line: instruction (1 line) = 1 line offset
         try:
             animations_list = self.query_one("#animations-list", Static)
-            # Scroll the animations list widget within its container
-            # Each item is approximately 1 line tall
-            animations_list.scroll_to_region((0, 2 + self.focused_index, 60, 1), animate=False, force=True)
+            # Scroll the animations list widget within its container (single column)
+            row = self.focused_index
+            animations_list.scroll_to_region((0, 1 + row, 60, 1), animate=False, force=True)
         except:
             pass  # Ignore if scrolling fails
     
@@ -255,10 +262,21 @@ class AnimationsPanel(Static):
     
     def on_focus(self, event: events.Focus) -> None:
         """Update display when focused"""
+        # Ensure focused_index matches the currently selected animation
+        try:
+            for idx, (anim_id, _name) in enumerate(self.ANIMATIONS_LIST):
+                if anim_id == self.selected_animation:
+                    self.focused_index = idx
+                    break
+        except Exception:
+            pass
+
+        self.is_focused = True
         self._update_display()
     
     def on_blur(self, event: events.Blur) -> None:
         """Update display when focus lost"""
+        self.is_focused = False
         self._update_display()
     
     def watch_selected_animation(self, new_value: str) -> None:
@@ -274,16 +292,19 @@ class AnimationsPanel(Static):
         x = event.x
         y = event.y
         
-        # Account for header lines: instruction (1) + blank (1) = 2 lines offset
+        # Account for header lines: instruction (1) + blank spacer (1) = 2 line offset
         HEADER_OFFSET = 2
         
         # Only handle clicks in the left half (animations list)
         width = self.size.width
         if x < width // 2 and y >= HEADER_OFFSET:
-            # Adjust y for header offset
+            # Single-column layout inside left half
             list_y = y - HEADER_OFFSET
-            if 0 <= list_y < len(self.ANIMATIONS_LIST):
-                anim_id, anim_name = self.ANIMATIONS_LIST[list_y]
-                self.focused_index = list_y
+            if list_y < 0:
+                return
+            index = list_y
+            if 0 <= index < len(self.ANIMATIONS_LIST):
+                anim_id, anim_name = self.ANIMATIONS_LIST[index]
+                self.focused_index = index
                 self.selected_animation = anim_id
                 self._apply_animation()

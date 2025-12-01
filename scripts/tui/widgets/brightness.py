@@ -4,7 +4,9 @@ Brightness panel widget for ForgeworkLights TUI
 from textual.widgets import Static
 from textual.reactive import reactive
 from textual.message import Message
-import re
+
+from .slider import Slider
+from ..theme import THEME
 
 
 class BrightnessPanel(Static):
@@ -27,64 +29,63 @@ class BrightnessPanel(Static):
         super().__init__(**kwargs)
         self.can_focus = True
     
-    def render(self) -> str:
-        width = max(60, self.size.width if self.size.width > 0 else 70)
-        content_width = width - 2  # Account for │  │
-        
-        # Calculate slider bar width
-        label = f" {self.brightness:3d}%"
-        prefix = " [dim]←→ adjust[/] "
-        clean_prefix = re.sub(r'\[.*?\]', '', prefix)
-        slider_width = max(10, content_width - len(clean_prefix) - len(label) - 1)
-        
-        # Calculate filled portion
-        filled = int((self.brightness / 100) * slider_width)
-        empty = slider_width - filled
-        
-        # Create slider bar
-        bar = f"[yellow]{'━' * filled}[/][dim]{'━' * empty}[/dim]"
-        
-        # Format with proper padding
-        content = f"{prefix}{bar}{label}"
-        # Strip Rich markup to get actual display length
-        clean_content = re.sub(r'\[.*?\]', '', content)
-        padding = max(0, content_width - len(clean_content))
-        
-        line = f"│{content}{' ' * padding}│"
-        return f"[cyan]{line}[/]"
+    def compose(self):
+        """Compose the brightness slider using the shared Slider widget."""
+        yield Slider(
+            min_value=0,
+            max_value=100,
+            label="Brightness",
+            suffix="%",
+            color=THEME["button_fg"],
+            width=80,
+            boxed=True,
+            border_color=THEME["box_outline"],
+            auto_width=False,
+            label_color=THEME["main_fg"],
+            arrows_color=THEME["hi_fg"],
+            label_indent=3,
+            step_size=1,
+            id="brightness-slider",
+        )
     
-    def on_click(self, event) -> None:
-        """Handle clicks on the brightness slider"""
-        x = event.x
-        width = max(60, self.size.width if self.size.width > 0 else 70)
-        content_width = width - 2
-        
-        # Calculate slider position
-        label = f" {self.brightness:3d}%"
-        prefix = " [dim]←→ adjust[/] "
-        clean_prefix = re.sub(r'\[.*?\]', '', prefix)
-        slider_width = max(10, content_width - len(clean_prefix) - len(label) - 1)
-        
-        # Slider starts after: │ (1) + prefix
-        slider_start = 1 + len(clean_prefix)
-        slider_end = slider_start + slider_width
-        
-        # Check if click is within slider bounds
-        if slider_start <= x < slider_end:
-            # Calculate brightness from click position
-            click_pos = x - slider_start
-            new_brightness = int((click_pos / slider_width) * 100)
-            new_brightness = max(0, min(100, new_brightness))  # Clamp to 0-100
-            
-            # Post message to parent app
-            self.post_message(self.BrightnessChanged(new_brightness))
+    def on_mount(self) -> None:
+        """Initialize slider value from brightness reactive state."""
+        try:
+            slider = self.query_one("#brightness-slider", Slider)
+            slider._suppress_message = True
+            slider.value = int(self.brightness)
+            slider._suppress_message = False
+        except Exception:
+            pass
+    
+    def watch_brightness(self, old_value: int, new_value: int) -> None:
+        """Keep the internal Slider in sync when brightness is updated externally."""
+        try:
+            slider = self.query_one("#brightness-slider", Slider)
+            slider._suppress_message = True
+            slider.value = int(new_value)
+            slider._suppress_message = False
+        except Exception:
+            pass
+    
+    def on_slider_value_changed(self, message: Slider.ValueChanged) -> None:
+        """Handle changes from the embedded Slider and emit BrightnessChanged."""
+        try:
+            # Update reactive state
+            self.brightness = int(message.value)
+            # Re-emit in the existing BrightnessChanged format for the App handler
+            self.post_message(self.BrightnessChanged(self.brightness))
+        except Exception:
+            pass
     
     def action_brightness_up(self) -> None:
-        """Increase brightness by 5%"""
-        new_brightness = min(100, self.brightness + 5)
+        """Increase brightness by 1%"""
+        new_brightness = min(100, int(self.brightness) + 1)
+        self.brightness = new_brightness
         self.post_message(self.BrightnessChanged(new_brightness))
     
     def action_brightness_down(self) -> None:
-        """Decrease brightness by 5%"""
-        new_brightness = max(0, self.brightness - 5)
+        """Decrease brightness by 1%"""
+        new_brightness = max(0, int(self.brightness) - 1)
+        self.brightness = new_brightness
         self.post_message(self.BrightnessChanged(new_brightness))

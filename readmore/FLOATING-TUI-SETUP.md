@@ -1,6 +1,6 @@
 # Floating TUI Window Setup
 
-The ForgeworkLights TUI can now open as a **floating window** in the upper right corner when launched from Waybar.
+The ForgeworkLights TUI can now open as a **floating window** in the upper right corner when launched from Waybar. this is handeled by the installer.
 
 ## Quick Setup
 
@@ -55,7 +55,7 @@ Add these lines to `~/.config/hypr/hyprland.conf`:
 ```conf
 # ForgeworkLights TUI Window Rules
 windowrulev2 = float, class:^(forgework-lights-tui)$
-windowrulev2 = size 1200 800, class:^(forgework-lights-tui)$
+windowrulev2 = size 1200 900, class:^(forgework-lights-tui)$
 windowrulev2 = move 100%-1220 60, class:^(forgework-lights-tui)$
 windowrulev2 = animation slide, class:^(forgework-lights-tui)$
 ```

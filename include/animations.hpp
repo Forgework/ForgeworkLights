@@ -191,7 +191,31 @@ public:
       
       double intensity = 0.0;
       if (ripple_position >= -1.0 && ripple_position <= 1.0) {
-        intensity = (std::cos(ripple_position * M_PI) + 1.0) / 2.0;
+        // Base intensity using cosine for smooth wave shape
+        double base_intensity = (std::cos(ripple_position * M_PI) + 1.0) / 2.0;
+        
+        // Overall cycle ramp-up - when the entire ripple cycle restarts
+        double cycle_ramp = 1.0;
+        if (phase < 0.2) {
+          // Ramp up from 0 to 1 over the first 20% of the cycle
+          cycle_ramp = phase / 0.2;
+          cycle_ramp = cycle_ramp * cycle_ramp; // Quadratic easing
+        }
+        
+        // Gradual increase at the start of the ripple wave
+        // When ripple_position is near -1.0 (start of wave), apply gradual increase
+        double start_factor = 0.0;
+        if (ripple_position >= -1.0 && ripple_position <= -0.5) {
+          // Map ripple_position from [-1.0, -0.5] to [0.0, 1.0] for gradual increase
+          start_factor = (ripple_position + 1.0) / 0.5;
+          start_factor = start_factor * start_factor; // Quadratic easing for smoother transition
+        } else if (ripple_position > -0.5) {
+          start_factor = 1.0; // Full intensity after the gradual increase
+        }
+        
+        intensity = base_intensity * start_factor * cycle_ramp;
+        
+        // Apply fade at the end of the ripple cycle
         double fade = 1.0 - std::max(0.0, std::min(1.0, (phase - 1.0) / 0.5));
         intensity *= fade;
       }
@@ -305,7 +329,7 @@ public:
     double color_position = position / std::max(1.0, static_cast<double>(led_count_ - 1));
     RGB bounce_color = get_color_at_position(color_position);
     
-    int center = static_cast<int>(position);
+    int center = static_cast<int>(std::round(position));
     for (int i = 0; i < segment_size_; i++) {
       int led_pos = center + i;
       if (led_pos >= 0 && led_pos < led_count_) {
@@ -403,7 +427,7 @@ public:
                          double period = 10.0, double shift_amount = 1.0)
     : BaseAnimation(led_count, theme_colors), period_(period), shift_amount_(shift_amount) {}
   
-  std::vector<RGB> render_frame() override {
+std::vector<RGB> render_frame() override {
     double t = get_elapsed_time();
     // Create continuous cycling shift (0.0 to shift_amount_)
     double shift = std::fmod(t / period_, 1.0) * shift_amount_;
@@ -411,9 +435,48 @@ public:
     std::vector<RGB> frame;
     for (int i = 0; i < led_count_; i++) {
       double base_position = i / std::max(1.0, static_cast<double>(led_count_ - 1));
-      // Wrap around using fmod to cycle through full gradient
-      double shifted_position = std::fmod(base_position + shift, 1.0);
-      frame.push_back(get_color_at_position(shifted_position));
+      double raw_position = base_position + shift;
+      
+      RGB color;
+      
+      // Handle smooth wrapping for all positions
+      if (raw_position >= 1.0) {
+        // We've wrapped around - need smooth transition
+        double wrapped_pos = raw_position - std::floor(raw_position);
+        
+        // Create a larger transition zone to catch the last pixel
+        double transition_width = 0.25; // 25% of gradient for smooth transition
+        
+        if (wrapped_pos < transition_width) {
+          // Smooth blend from last color to first color
+          double blend_factor = wrapped_pos / transition_width;
+          blend_factor = blend_factor * blend_factor; // Quadratic easing
+          
+          RGB last_color = get_color_at_position(0.98); // Very near end
+          RGB first_color = get_color_at_position(wrapped_pos);
+          color = rgb_interpolate(last_color, first_color, blend_factor);
+        } else {
+          color = get_color_at_position(wrapped_pos);
+        }
+      } else {
+        // Check if we're near the end and about to wrap
+        double distance_to_end = 1.0 - raw_position;
+        double pre_wrap_zone = 0.1; // 10% before wrap for anticipation
+        
+        if (distance_to_end < pre_wrap_zone && theme_colors_.size() >= 2) {
+          // Start blending early to prevent sudden change
+          double blend_factor = 1.0 - (distance_to_end / pre_wrap_zone);
+          blend_factor = blend_factor * blend_factor; // Quadratic easing
+          
+          RGB current_color = get_color_at_position(raw_position);
+          RGB next_color = theme_colors_.front(); // First color in theme
+          color = rgb_interpolate(current_color, next_color, blend_factor * 0.3); // Subtle anticipation
+        } else {
+          color = get_color_at_position(raw_position);
+        }
+      }
+      
+      frame.push_back(color);
     }
     return frame;
   }
