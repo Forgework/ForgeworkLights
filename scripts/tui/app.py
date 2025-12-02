@@ -53,7 +53,6 @@ class ForgeworkLightsTUI(App):
     
     BINDINGS = [
         ("ctrl+q", "quit", "Quit"),
-        ("escape", "quit", "Quit"),
     ]
     
     def __init__(self):

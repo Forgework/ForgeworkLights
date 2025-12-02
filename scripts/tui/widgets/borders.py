@@ -96,9 +96,13 @@ class ControlFooterBorder(Static):
             focused_control = self.controls[self.focused_index]
         
         # Define controls with hover/focus effects
-        quit = "[Ctrl+Q] Quit"
+        base_quit = "[Ctrl+Q] Quit"
+        quit_color = f"[{THEME['button_fg']}]" if THEME.get('button_fg') else ""
+        quit_reset = "[/]" if quit_color else ""
+        quit = f"{quit_color}{base_quit}{quit_reset}"
+
         if self.hovered_item == "quit" or focused_control == "quit":
-            quit = "[bold yellow][Ctrl+Q] Quit[/]"
+            quit = f"[bold {THEME['hi_fg']} on {THEME['selected_bg']}]" + base_quit + "[/]"
         
         controls = f" {quit} "
         

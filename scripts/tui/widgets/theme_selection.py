@@ -137,6 +137,8 @@ class ThemeSelectionPanel(ScrollableContainer):
                 db_data = json.loads(THEMES_DB_PATH.read_text())
                 if "themes" in db_data:
                     for idx, theme_key in enumerate(sorted(db_data["themes"].keys()), start=1):
+                        if theme_key == "__preview__":
+                            continue  # hide temporary preview theme
                         theme_data = db_data["themes"][theme_key]
                         colors = theme_data.get("colors", [])
                         theme_name = theme_data.get("name", theme_key)
