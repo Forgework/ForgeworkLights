@@ -40,6 +40,7 @@ The installer will:
 - ✓ Set up configuration
 - ✓ Install systemd user service (optional)
 - ✓ Set up waybar integration (optional)
+- ✓ Offer Hyprland floating rules and keyboard shortcuts (optional)
 
 ### Uninstall
 
@@ -159,6 +160,17 @@ forgeworklights daemon --safety=on    # Explicit safety mode (default)
 
 # Adjust brightness (0.0-1.0)
 forgeworklights brightness 0.5
+
+# Quick brightness nudges (default ±0.05)
+forgeworklights brightness-up
+forgeworklights brightness-down
+
+# Turn LEDs off instantly
+forgeworklights brightness-off
+
+# Cycle or set animations
+forgeworklights animation next
+forgeworklights animation set wave
 ```
 
 ### Systemd Service

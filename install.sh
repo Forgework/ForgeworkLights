@@ -14,6 +14,63 @@ pause_step() {
     sleep "$SHORT_DELAY"
 }
 
+SHORTCUTS_INSTALLED=0
+
+# Setup Hyprland keyboard shortcuts
+setup_hyprland_shortcuts() {
+    echo ""
+
+    if ! command -v hyprctl &> /dev/null; then
+        echo -e "${YELLOW}!${NC} Hyprland not detected, skipping keyboard shortcuts"
+        return
+    fi
+
+    local hypr_config="$HOME/.config/hypr/hyprland.conf"
+    local bindings_target="$HOME/.config/forgeworklights/hyprland-bindings.conf"
+    local include_line="source=${bindings_target}"
+
+    if [ ! -f "$hypr_config" ]; then
+        echo -e "${YELLOW}!${NC} Hyprland config not found at $hypr_config"
+        return
+    fi
+
+    read -p "Install Hyprland keyboard shortcuts (Super+Alt combos)? [Y/n] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        return
+    fi
+
+    mkdir -p "$(dirname "$bindings_target")"
+    if [ -f "config/hyprland-shortcuts.conf" ]; then
+        cp "config/hyprland-shortcuts.conf" "$bindings_target"
+    elif [ -f "${BASH_SOURCE%/*}/config/hyprland-shortcuts.conf" ]; then
+        cp "${BASH_SOURCE%/*}/config/hyprland-shortcuts.conf" "$bindings_target"
+    else
+        echo -e "${RED}✗${NC} Shortcut template not found"
+        return 1
+    fi
+    echo -e "${GREEN}✓${NC} Installed shortcut template to $bindings_target"
+    SHORTCUTS_INSTALLED=1
+
+    if ! grep -Fxq "$include_line" "$hypr_config"; then
+        local backup_path="${hypr_config}.forgeworklights-shortcuts.backup"
+        cp "$hypr_config" "$backup_path"
+        echo "Created backup: $backup_path"
+
+        {
+            echo ""
+            echo "# ForgeworkLights keyboard shortcuts"
+            echo "$include_line"
+        } >> "$hypr_config"
+
+        echo -e "${GREEN}✓${NC} Added shortcut include to $hypr_config"
+    else
+        echo -e "${YELLOW}!${NC} Shortcut include already present in $hypr_config"
+    fi
+
+    hyprctl reload &>/dev/null && echo -e "${GREEN}✓${NC} Reloaded Hyprland config" || true
+}
+
 echo "========================================"
 echo "  ForgeworkLights Installation"
 echo "========================================"
@@ -42,6 +99,12 @@ check_framework_desktop() {
 # Setup Walker launcher integration
 setup_walker_launcher() {
     echo ""
+
+    if ! command -v walker &> /dev/null; then
+        echo -e "${YELLOW}!${NC} Walker launcher not detected; skipping shortcut install"
+        return
+    fi
+
     read -p "Install Walker launcher shortcut? [Y/n] " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Nn]$ ]]; then
@@ -583,6 +646,8 @@ main() {
     pause_step
     setup_hyprland
     pause_step
+    setup_hyprland_shortcuts
+    pause_step
     
     echo ""
     echo "========================================"
@@ -599,6 +664,17 @@ main() {
     
     check_installation
     pause_step
+
+    if [ "$SHORTCUTS_INSTALLED" -eq 1 ]; then
+        echo ""
+        echo "Hyprland keyboard shortcuts installed (Super+Alt combos):"
+        echo "  ↑  Increase brightness (+5%)"
+        echo "  ↓  Decrease brightness (-5%)"
+        echo "  0  Turn LEDs off"
+        echo "  →  Next animation"
+        echo "  ←  Previous animation"
+        echo "Edit: ~/.config/forgeworklights/hyprland-bindings.conf"
+    fi
 }
 
 main "$@"

@@ -61,13 +61,6 @@ ANIMATIONS = {
             ("sparkle_duration", "Duration", 5, 30, 15, 1, "frames")
         ]
     },
-    "strobe": {
-        "name": "Strobe",
-        "description": "Flashing",
-        "params": [
-            ("frequency", "Frequency", 1.0, 20.0, 10.0, 1.0, "Hz")
-        ]
-    },
     "gradient-shift": {
         "name": "Gradient Shift",
         "description": "Color transitions",

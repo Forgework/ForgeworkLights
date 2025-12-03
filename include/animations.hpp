@@ -396,27 +396,6 @@ public:
   }
 };
 
-// Strobe - fast flashing
-class StrobeAnimation : public BaseAnimation {
-  double frequency_;
-  
-public:
-  StrobeAnimation(int led_count, const std::vector<std::string>& theme_colors, double frequency = 10.0)
-    : BaseAnimation(led_count, theme_colors), frequency_(frequency) {}
-  
-  std::vector<RGB> render_frame() override {
-    double t = get_elapsed_time();
-    double phase = std::fmod(t * frequency_, 1.0);
-    double brightness = (phase < 0.5) ? 1.0 : 0.0;
-    
-    std::vector<RGB> frame;
-    for (int i = 0; i < led_count_; i++) {
-      frame.push_back(rgb_scale(get_led_base_color(i), brightness));
-    }
-    return frame;
-  }
-};
-
 // Gradient Shift - smooth color transitions across entire strip
 class GradientShiftAnimation : public BaseAnimation {
   double period_;

@@ -90,6 +90,16 @@ sudo install -Dm755 -o root -g root build/fw_root_helper /usr/local/libexec/fw_r
 sudo chmod 4755 /usr/local/libexec/fw_root_helper
 ```
 
+### Optional Hyprland Keyboard Shortcuts
+
+ForgeworkLights exposes low-privilege CLI entry points (`forgeworklights brightness-*`, `forgeworklights animation next|prev|set`) that simply write user-owned config files which the daemon already watches via inotify. During install, users can opt into a Hyprland include file (`~/.config/forgeworklights/hyprland-bindings.conf`) that binds Super+Alt key combos to those commands:
+
+- **Super+Alt+↑ / ↓** – call `brightness-up` / `brightness-down` (±5%)
+- **Super+Alt+0** – call `brightness-off`
+- **Super+Alt+→ / ←** – call `animation next` / `animation prev`
+
+Because these shortcuts only trigger existing CLI utilities, no additional privileges are granted: Hyprland executes the user binary, which edits files in `~/.config/forgeworklights/`. The daemon detects those file changes and applies them, keeping the privilege boundary intact.
+
 ### Verification
 
 Check installation:

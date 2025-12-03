@@ -413,9 +413,6 @@ int ARGBDaemon::run() {
       double sparkle_rate = get_param("sparkle", "sparkle_rate", 0.1);
       int sparkle_duration = static_cast<int>(get_param("sparkle", "sparkle_duration", 15.0));
       return std::make_unique<SparkleAnimation>(cfg_.led_count, theme_colors, sparkle_rate, sparkle_duration);
-    } else if (anim_name == "strobe") {
-      double frequency = get_param("strobe", "frequency", 10.0);
-      return std::make_unique<StrobeAnimation>(cfg_.led_count, theme_colors, frequency);
     } else if (anim_name == "gradient-shift") {
       double period = get_param("gradient-shift", "period", 10.0);
       double shift_amount = get_param("gradient-shift", "shift_amount", 1.0);

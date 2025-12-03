@@ -58,6 +58,46 @@ else
     fi
 fi
 
+# Ask about Hyprland keyboard shortcuts
+echo ""
+read -p "Remove Hyprland keyboard shortcuts? [Y/n] " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    hypr_config="$HOME/.config/hypr/hyprland.conf"
+    bindings_target="$HOME/.config/forgeworklights/hyprland-bindings.conf"
+    include_line="source=${bindings_target}"
+
+    if [ -f "$hypr_config" ]; then
+        if grep -Fxq "$include_line" "$hypr_config"; then
+            cp "$hypr_config" "${hypr_config}.forgeworklights-shortcuts.uninstall-backup"
+            register_backup "${hypr_config}.forgeworklights-shortcuts.uninstall-backup"
+            echo "Created backup: ${hypr_config}.forgeworklights-shortcuts.uninstall-backup"
+
+            sed -i '/# ForgeworkLights keyboard shortcuts/d' "$hypr_config"
+            sed -i "\|$include_line|d" "$hypr_config"
+            sed -i '/^$/N;/^\n$/D' "$hypr_config"
+            echo -e "${GREEN}✓${NC} Removed shortcut include from $hypr_config"
+
+            if command -v hyprctl &> /dev/null; then
+                hyprctl reload &>/dev/null && echo -e "${GREEN}✓${NC} Reloaded Hyprland config" || true
+                pause_step
+            fi
+        else
+            echo -e "${YELLOW}!${NC} No ForgeworkLights shortcut include found in $hypr_config"
+        fi
+    else
+        echo -e "${YELLOW}!${NC} Hyprland config not found"
+    fi
+
+    if [ -f "$bindings_target" ]; then
+        rm "$bindings_target"
+        echo -e "${GREEN}✓${NC} Removed shortcut file ($bindings_target)"
+    else
+        echo -e "${YELLOW}!${NC} Shortcut file not found at $bindings_target"
+    fi
+    pause_step
+fi
+
 # Remove systemd service
 if [ -f ~/.config/systemd/user/forgeworklights.service ]; then
     rm ~/.config/systemd/user/forgeworklights.service
