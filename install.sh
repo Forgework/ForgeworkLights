@@ -9,6 +9,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+SHORT_DELAY=0.05
+pause_step() {
+    sleep "$SHORT_DELAY"
+}
+
 echo "========================================"
 echo "  ForgeworkLights Installation"
 echo "========================================"
@@ -32,6 +37,74 @@ check_framework_desktop() {
     else
         echo -e "${GREEN}✓${NC} Framework Desktop detected: $product"
     fi
+}
+
+# Setup Walker launcher integration
+setup_walker_launcher() {
+    echo ""
+    read -p "Install Walker launcher shortcut? [Y/n] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        return
+    fi
+
+    local home_dir="$HOME"
+    local launcher_dir="$home_dir/.local/bin"
+    local launcher_path="$launcher_dir/forgeworklights.sh"
+    local icon_target="$home_dir/.local/share/icons/forgeworklights.png"
+    local desktop_dir="$home_dir/.local/share/applications"
+    local desktop_entry="$desktop_dir/forgeworklights.desktop"
+
+    mkdir -p "$launcher_dir" "$desktop_dir"
+    install -Dm644 "Icons/icon.png" "$icon_target"
+
+    cat > "$launcher_path" <<'LAUNCHER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+systemctl --user start forgeworklights.service >/dev/null 2>&1 || true
+
+if command -v forgeworklights-menu-floating &> /dev/null; then
+    exec forgeworklights-menu-floating "$@"
+elif command -v forgeworklights-menu &> /dev/null; then
+    exec forgeworklights-menu "$@"
+else
+    echo "ForgeworkLights TUI not found" >&2
+    exit 1
+fi
+LAUNCHER
+    chmod +x "$launcher_path"
+
+    cat > "$desktop_entry" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Forgework Lights
+Comment=Control panel for Forgework Lights
+Exec=${home_dir}/.local/bin/forgeworklights.sh
+Icon=${icon_target}
+Terminal=true
+Categories=Utility;
+DESKTOP
+
+    if command -v update-desktop-database &> /dev/null; then
+        update-desktop-database "$desktop_dir" >/dev/null 2>&1 || true
+    fi
+
+    if [ -f "$home_dir/.config/systemd/user/forgeworklights.service" ]; then
+        if systemctl --user is-enabled forgeworklights.service &> /dev/null; then
+            echo -e "${GREEN}✓${NC} forgeworklights.service already enabled"
+        else
+            if systemctl --user enable --now forgeworklights.service &> /dev/null; then
+                echo -e "${GREEN}✓${NC} forgeworklights.service enabled and started"
+            else
+                echo -e "${YELLOW}!${NC} Unable to enable forgeworklights.service automatically"
+            fi
+        fi
+    else
+        echo -e "${YELLOW}!${NC} Systemd service not installed; launcher will start daemon on demand"
+    fi
+
+    echo -e "${GREEN}✓${NC} Walker launcher installed at $desktop_entry"
 }
 
 # Check for required dependencies
@@ -493,13 +566,23 @@ check_installation() {
 # Main installation flow
 main() {
     check_framework_desktop
+    pause_step
     check_dependencies
+    pause_step
     install_optional_deps
+    pause_step
     build_project
+    pause_step
     install_binaries
+    pause_step
     setup_systemd
+    pause_step
     setup_waybar
+    pause_step
+    setup_walker_launcher
+    pause_step
     setup_hyprland
+    pause_step
     
     echo ""
     echo "========================================"
@@ -515,6 +598,7 @@ main() {
     echo ""
     
     check_installation
+    pause_step
 }
 
 main "$@"
