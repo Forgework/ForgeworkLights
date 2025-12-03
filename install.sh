@@ -82,7 +82,7 @@ Name=Forgework Lights
 Comment=Control panel for Forgework Lights
 Exec=${home_dir}/.local/bin/forgeworklights.sh
 Icon=${icon_target}
-Terminal=true
+Terminal=false
 Categories=Utility;
 DESKTOP
 
